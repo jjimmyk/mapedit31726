@@ -772,7 +772,7 @@ export default function App() {
                 boxShadow: '0 0 20px rgba(147, 51, 234, 0.2), 0 0 40px rgba(147, 51, 234, 0.1)'
               }}
             >
-              <span>DHS Sector New York</span>
+              <span>My AOR: New York</span>
               <button
                 onClick={() => {
                   setMapCenter('-74.0060,40.7128');

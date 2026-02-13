@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { ChevronDown, ChevronRight, Edit2, Trash2, RefreshCw, Check, Download, Plus, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit2, Trash2, RefreshCw, Check, Download, Plus, ExternalLink, Map } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
@@ -12,6 +12,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import svgPaths from '../../imports/svg-7hg6d30srz';
+import { TiptapEditor } from '../TiptapEditor';
+import '../TiptapEditor.css';
 
 interface OverviewPhaseProps {
   data: Record<string, any>;
@@ -110,6 +112,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   const filesItemRef = useRef<HTMLDivElement>(null);
   const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [filePreviewModal, setFilePreviewModal] = useState<string | null>(null);
+  const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
   
   // Modal-specific data sources state
   const [modalDataSourcesOpen, setModalDataSourcesOpen] = useState(false);
@@ -117,10 +120,46 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   const [modalFilesSubmenuOpen, setModalFilesSubmenuOpen] = useState(false);
   const modalFilesItemRef = useRef<HTMLDivElement>(null);
   const [modalSubmenuPosition, setModalSubmenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [readinessExpanded, setReadinessExpanded] = useState<Record<string, boolean>>({
+    maneuver: false,
+    intel: false,
+    logistics: false,
+    command: false,
+    force: false,
+    other: false
+  });
+  const [readinessDataSourcesOpenKey, setReadinessDataSourcesOpenKey] = useState<string | null>(null);
+  const [readinessFilesSubmenuOpen, setReadinessFilesSubmenuOpen] = useState(false);
+  const readinessFilesItemRef = useRef<HTMLDivElement>(null);
+  const [readinessSubmenuPosition, setReadinessSubmenuPosition] = useState<{ top: number; left: number } | null>(null);
   
   // SITREP tabs state
   const [activeSitrepTab, setActiveSitrepTab] = useState<number>(1);
   const [activeDraftTab, setActiveDraftTab] = useState<number>(1);
+  const [childIncident1SitrepTab, setChildIncident1SitrepTab] = useState<number>(1);
+  const [childIncident2SitrepTab, setChildIncident2SitrepTab] = useState<number>(1);
+  const [sitrepPopoutOpen, setSitrepPopoutOpen] = useState(false);
+  const [sitrepPopoutTab, setSitrepPopoutTab] = useState<number>(1);
+  const [sitrepPopoutSection, setSitrepPopoutSection] = useState<number>(1);
+  const [sitrepPopoutFontSize, setSitrepPopoutFontSize] = useState<number>(12);
+  const [sitrepLatestFontSize, setSitrepLatestFontSize] = useState<number>(12);
+  const [readinessExpandedPopout, setReadinessExpandedPopout] = useState<Record<string, boolean>>({
+    maneuver: false,
+    intel: false,
+    logistics: false,
+    command: false,
+    force: false,
+    other: false
+  });
+  const [sitrepModalOpen, setSitrepModalOpen] = useState<string | null>(null);
+  const [sitrepModalTab, setSitrepModalTab] = useState<number>(1);
+  const [portStatusCondition, setPortStatusCondition] = useState<string>('Port Condition X-RAY: 48 hours.');
+  const [portStatusPopoverOpen, setPortStatusPopoverOpen] = useState(false);
+  const [hurconStatus, setHurconStatus] = useState<string>('5');
+  const [hurconPopoverOpen, setHurconPopoverOpen] = useState(false);
+  const [coopStatus, setCoopStatus] = useState<string>('Normal Operations');
+  const [coopPopoverOpen, setCoopPopoverOpen] = useState(false);
+  const [cirAlertExpanded, setCirAlertExpanded] = useState(false);
   
   // Handle click outside to close menus
   useEffect(() => {
@@ -140,15 +179,21 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
           setModalFilesSubmenuOpen(false);
         }
       }
+      if (readinessFilesSubmenuOpen && readinessFilesItemRef.current && !readinessFilesItemRef.current.contains(target)) {
+        const submenuElement = document.querySelector('[data-submenu="files-readiness"]');
+        if (submenuElement && !submenuElement.contains(target)) {
+          setReadinessFilesSubmenuOpen(false);
+        }
+      }
     };
 
-    if (filesSubmenuOpen || modalFilesSubmenuOpen) {
+    if (filesSubmenuOpen || modalFilesSubmenuOpen || readinessFilesSubmenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [filesSubmenuOpen, modalFilesSubmenuOpen]);
+  }, [filesSubmenuOpen, modalFilesSubmenuOpen, readinessFilesSubmenuOpen]);
   
   // Draft content for each tab
   const [draftTabContents, setDraftTabContents] = useState<Record<number, string>>({
@@ -180,6 +225,20 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     { id: 'well-control-incident', name: 'Well Control Event - Mobile Drilling Unit Genesis' },
     { id: 'vessel-collision-response', name: 'Supply Vessel Collision - Platform Bravo' }
   ];
+  const portStatusOptions = [
+    'Port Condition WHISKEY: Set when sustained gale force winds are forecasted to reach the port within 72 hours.',
+    'Port Condition X-RAY: 48 hours.',
+    'Port Condition YANKEE: 24 hours.',
+    'Port Condition ZULU: 12 hours.',
+    'Port Condition RECOVERY: Set after storm conditions have passed and the port is safe to return to normal operations.'
+  ];
+  const hurconOptions = ['1', '2', '3', '4', '5'];
+  const coopOptions = ['Normal Operations', 'COOP Activated', 'Devolution', 'Reconstitution'];
+  const pratusStubOptions = [
+    'LCDR Sarah Mitchell — Incident Commander',
+    'Firetruck 12 — Structural Engine',
+    'USCG Cutter Hamilton (WMSL-753)'
+  ];
 
   // Function to generate data based on region and incident
   const generateDataForSelection = (region: string, incident: string, mode: 'region' | 'incident' = 'region'): DataSourceItem[] => {
@@ -195,7 +254,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     if (mode === 'region') {
       items.push({
         id: 'src0',
-        name: `Active Incidents Within ${regionCoverage}`,
+        name: `Incidents Within ${regionCoverage}`,
         status: 'Active',
         lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
           year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
@@ -213,7 +272,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     items.push(
       {
         id: 'src0a',
-        name: 'Port Status',
+        name: `Port Status for ${regionCoverage}`,
         status: 'Active',
         lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
           year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
@@ -242,21 +301,6 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         dataSources: 'USCG District Command, Sector Operations Centers, Unit Commanders'
       },
       {
-        id: 'src0c',
-        name: 'Port Condition Status',
-        status: 'Active',
-        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
-        }).replace(',', ''),
-        updateFrequency: 'Every 2 hours',
-        provider: 'U.S. Coast Guard Sector',
-        description: `Comprehensive port readiness condition for ${regionCoverage}. Includes X-RAY (normal operations), YANKEE (heavy weather/high winds expected), ZULU (port closed/severe conditions) designations affecting ${incidentName} maritime operations and emergency response.`,
-        dataTypes: ['Port Condition', 'Weather Impact', 'Facility Status', 'Safety Measures', 'Operational Restrictions'],
-        coverage: regionCoverage,
-        reliability: '99.9% uptime',
-        dataSources: 'USCG Captain of the Port, National Weather Service, Port Operations'
-      },
-      {
         id: 'src0d',
         name: 'COOP Status',
         status: 'Active',
@@ -270,6 +314,21 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         coverage: regionCoverage,
         reliability: '99.8% uptime',
         dataSources: 'Federal Emergency Operations, State EOC, Local Emergency Management, Agency COOP Coordinators'
+      },
+      {
+        id: 'src0f',
+        name: `Critical Information Requirements (CIRs) for ${regionCoverage}`,
+        status: 'Active',
+        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
+          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
+        }).replace(',', ''),
+        updateFrequency: 'Per Operational Period',
+        provider: 'Unified Command - Planning Section',
+        description: `Critical Information Requirements (CIRs) for ${regionCoverage} that inform operational decisions and resource prioritization for ${incidentName}.`,
+        dataTypes: ['Decision Points', 'Priority Information', 'Collection Tasks', 'Reporting Requirements'],
+        coverage: regionCoverage,
+        reliability: '99.5% uptime',
+        dataSources: 'ICS-201/202, Planning Meeting Notes, UC Briefings'
       },
       {
         id: 'src0e',
@@ -288,7 +347,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
       },
       {
         id: 'src1',
-        name: 'Current Weather',
+        name: `Weather in ${regionCoverage}`,
         status: 'Active',
         lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
           year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
@@ -301,81 +360,6 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         reliability: '99.8% uptime',
         dataSources: 'NOAA Weather Stations, NDBC Buoys, FAA AWOS Network, Regional Airports'
       },
-      {
-        id: 'src2',
-        name: 'Forecast Weather',
-        status: 'Active',
-        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
-        }).replace(',', ''),
-        updateFrequency: 'Every 6 hours',
-        provider: 'NOAA National Weather Service',
-        description: `Weather forecasts for ${incidentName} operational planning including 24-hour, 48-hour, and 7-day forecasts, marine forecasts, severe weather outlooks, and extended outlook for response operations in ${regionCoverage}.`,
-        dataTypes: ['24-Hour Forecast', '48-Hour Forecast', '7-Day Outlook', 'Marine Forecast', 'Wave Heights', 'Severe Weather Outlook'],
-        coverage: regionCoverage,
-        reliability: '99.5% uptime',
-        dataSources: 'GFS Model, NAM Model, HRRR Model, WRF-ARW, Wave Watch III, NHC Advisories'
-      },
-      {
-        id: 'src3',
-        name: 'News',
-        status: 'Active',
-        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
-        }).replace(',', ''),
-        updateFrequency: 'Every 15 minutes',
-        provider: 'Multi-Source News Aggregator',
-        description: `Aggregated news coverage related to ${incidentName} from local, regional, and national news sources including incident-related news stories, press releases, social media monitoring, and public statements affecting ${regionCoverage}.`,
-        dataTypes: ['Local News', 'Regional Coverage', 'National Media', 'Press Releases', 'Social Media', 'Public Statements'],
-        coverage: `${regionCoverage} - Local, Regional, and National Media`,
-        reliability: '99.9% uptime',
-        dataSources: 'AP News Wire, Local TV/Radio, Twitter API, Facebook Graph API, RSS Feeds, Press Release Services'
-      },
-      {
-        id: 'src4',
-        name: 'Power Outages',
-        status: region === 'gulf-coast' && incident === 'hurricane-delta' ? 'Delayed' : 'Active',
-        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
-        }).replace(',', ''),
-        updateFrequency: 'Every 10 minutes',
-        provider: 'Regional Utility Companies',
-        description: `Real-time power outage tracking for ${regionCoverage} operational area including number of customers affected, outage locations, estimated restoration times, critical infrastructure impacts affecting ${incidentName}.`,
-        dataTypes: ['Outage Locations', 'Customers Affected', 'Restoration ETAs', 'Critical Infrastructure', 'Crew Status', 'Substation Status'],
-        coverage: `${regionCoverage} Service Areas`,
-        reliability: region === 'gulf-coast' && incident === 'hurricane-delta' ? '95.0% uptime' : '98.5% uptime',
-        dataSources: 'Utility SCADA Systems, OMS Platforms, Field Crew Reports, Smart Meter Networks, Customer Call Centers'
-      },
-      {
-        id: 'src5',
-        name: 'Energy Reliability Index',
-        status: 'Active',
-        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
-        }).replace(',', ''),
-        updateFrequency: 'Hourly',
-        provider: 'Regional Energy Infrastructure Monitor',
-        description: `Comprehensive energy infrastructure reliability metrics for ${regionCoverage} including grid stability indicators, generation capacity, transmission status, fuel supply levels, and backup power availability supporting ${incidentName} operations.`,
-        dataTypes: ['Grid Stability', 'Generation Capacity', 'Transmission Status', 'Fuel Supplies', 'Backup Power', 'Critical Facilities'],
-        coverage: `${regionCoverage} Energy Infrastructure`,
-        reliability: '99.7% uptime',
-        dataSources: 'ISO/RTO Data, EIA-930, Generation Telemetry, Pipeline SCADA, Tank Gauging Systems, Generator Status Feeds'
-      },
-      {
-        id: 'src6',
-        name: 'Incident Objectives',
-        status: 'Active',
-        lastUpdated: new Date(baseTime.getTime() - randomMinutes() * 60000).toLocaleString('en-US', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
-        }).replace(',', ''),
-        updateFrequency: 'Per Operational Period',
-        provider: 'Unified Command - Planning Section',
-        description: `Current operational period incident objectives for ${incidentName} including strategic goals, tactical priorities, safety objectives, resource allocation targets, and completion criteria for response operations in ${regionCoverage}.`,
-        dataTypes: ['Strategic Objectives', 'Tactical Priorities', 'Safety Goals', 'Resource Targets', 'Success Metrics', 'Progress Status'],
-        coverage: `${incidentName} - All Operations`,
-        reliability: '99.9% uptime',
-        dataSources: 'ICS-202 Forms, Planning Meeting Minutes, Tactics Meeting Notes, IAP Documentation, UC Meeting Records'
-      }
     );
     
     return items;
@@ -547,6 +531,20 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     }
   };
 
+  const currentRegionName =
+    regions.find(r => r.id === (filterEditMode ? selectedRegionDraft : selectedRegion))?.name ||
+    'Unknown Region';
+  const sitrepSections = [
+    { id: 1, label: 'Reporting Unit' },
+    { id: 2, label: 'Executive Summary' },
+    { id: 8, label: 'Readiness Assessment / Incident Reporting by Category' },
+    { id: 9, label: 'Risk to Mission' },
+    { id: 10, label: 'Outstanding RFI or RFR' },
+    { id: 11, label: 'Previous (14 day or less) Critical Incident Communications or Intelligence Reporting' },
+    { id: 12, label: 'General Comments' },
+    { id: 13, label: 'Imagery' }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -640,7 +638,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                 <PopoverTrigger asChild>
                   <button
                     onClick={(e) => !filterEditMode && e.preventDefault()}
-                    className={`flex-1 h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center justify-between ${
+                    className={`w-1/2 h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center justify-between ${
                       filterEditMode ? 'cursor-pointer' : 'cursor-default'
                     }`}
                     style={{ 
@@ -703,7 +701,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                 <PopoverTrigger asChild>
                   <button
                     onClick={(e) => !filterEditMode && e.preventDefault()}
-                    className={`flex-1 h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center justify-between ${
+                    className={`w-1/2 h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center justify-between ${
                       filterEditMode ? 'cursor-pointer' : 'cursor-default'
                     }`}
                     style={{ 
@@ -762,6 +760,16 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                 </PopoverContent>
               </Popover>
             )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Filter map clicked');
+              }}
+              className="p-1 hover:bg-muted/30 rounded transition-colors"
+              title="Show on map"
+            >
+              <Map className="w-3 h-3 text-white" />
+            </button>
           </div>
 
           {/* Update and Cancel Buttons - Only visible when in edit mode */}
@@ -811,7 +819,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         <div className="border border-border rounded-lg overflow-hidden bg-card/30">
           <div className="p-4 space-y-3">
             {/* SITREP View Mode Toggle */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center bg-[#14171a] rounded-[4px] border border-[#6e757c] overflow-hidden">
                 <button
                   onClick={() => setSitrepViewMode('latest')}
@@ -862,6 +870,18 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   My Drafts
                 </button>
               </div>
+              {sitrepViewMode === 'latest' && (
+                <button
+                  onClick={() => {
+                    setSitrepViewMode('drafts');
+                    setIsAddingDraft(true);
+                  }}
+                  className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1"
+                >
+                  <span className="text-white text-xs">+</span>
+                  <span className="caption text-white">Add Draft</span>
+                </button>
+              )}
             </div>
 
             {sitrepViewMode === 'latest' ? (
@@ -869,49 +889,48 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                 {/* Header with Edit icon and Last Updated */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-white text-sm font-semibold">
-                      SITREP for {filterMode === 'region' 
-                        ? regions.find(r => r.id === selectedRegion)?.name 
-                        : incidents.find(i => i.id === selectedIncident)?.name}
-                    </Label>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <span className="caption text-white/70 text-xs block">
-                        Authored by LCDR Sarah Mitchell at 14:30 UTC 19 DEC 2025
-                      </span>
-                      <span className="caption text-white/70 text-xs block">
-                        Approved by CDR Thomas Bradley at 15:00 UTC 19 DEC 2025
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-white text-sm font-semibold">
+                        SITREP for {filterMode === 'region' 
+                          ? regions.find(r => r.id === selectedRegion)?.name 
+                          : incidents.find(i => i.id === selectedIncident)?.name}
+                      </Label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSitrepPopoutTab(activeSitrepTab);
+                          setSitrepPopoutOpen(true);
+                        }}
+                        className="p-1 hover:bg-muted/30 rounded transition-colors"
+                        title="Open in modal"
+                      >
+                        <ExternalLink className="w-3 h-3 text-white/70" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => {
-                        setSitrepViewMode('drafts');
-                        setIsAddingDraft(true);
-                      }}
-                      className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <span className="text-white text-xs">+</span>
-                      <span className="caption text-white">Add Draft</span>
-                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="caption text-white/70 text-xs block">
+                      Authored by LCDR Sarah Mitchell at 14:30 UTC 19 DEC 2025
+                    </span>
+                    <span className="caption text-white/70 text-xs block">
+                      Approved by CDR Thomas Bradley at 15:00 UTC 19 DEC 2025
+                    </span>
                   </div>
                   
-                  {/* SITREP Tabs */}
-                  <div className="flex items-center gap-1 mt-3 border-b border-border">
-                    {[1, 2, 3, 4, 5].map((tabNum) => {
-                      const isActive = tabNum === activeSitrepTab;
+                {/* SITREP Section Selector */}
+                <div className="space-y-2 mt-3">
+                  <div className="flex items-center gap-1 overflow-x-auto border-b border-border">
+                    {sitrepSections.map((section) => {
+                      const isActive = activeSitrepTab === section.id;
                       return (
                         <button
-                          key={tabNum}
-                          onClick={() => setActiveSitrepTab(tabNum)}
-                          className={`relative px-4 py-2 transition-colors whitespace-nowrap ${
-                            isActive
-                              ? 'text-accent'
-                              : 'text-foreground hover:text-accent'
+                          key={section.id}
+                          onClick={() => setActiveSitrepTab(section.id)}
+                          className={`relative px-3 py-2 transition-colors whitespace-nowrap ${
+                            isActive ? 'text-accent' : 'text-foreground hover:text-accent'
                           }`}
                         >
-                          <span className="caption">Tab {tabNum}</span>
-                          {/* Active indicator line */}
+                          <span className="caption">{section.label}</span>
                           {isActive && (
                             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
                           )}
@@ -919,6 +938,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                       );
                     })}
                   </div>
+                </div>
                   
                   {sitrepLastUpdated && (
                     <span className="caption text-white/70 block">
@@ -966,120 +986,106 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   </>
                 ) : (
                   <>
-                    {filterMode === 'region' && selectedRegion === 'west-coast' ? (
-                      <div className="bg-input-background border border-border rounded p-3 min-h-[240px]">
-                        <div className="caption text-white whitespace-pre-wrap">
-                          {activeSitrepTab === 1 && (
-                            <div>
-                              <p className="font-semibold mb-2">Part 1: Executive Summary</p>
-                              <p>This is placeholder content for Part 1 of the SITREP. This section would typically contain an executive summary of the situation report, providing a high-level overview of the current operational status, key developments, and critical information for decision-makers.</p>
+                    {activeSitrepTab === 8 ? (
+                      <div className="space-y-3">
+                        {[
+                          { key: 'maneuver', label: 'Maneuver & Force' },
+                          { key: 'intel', label: 'Intelligence & Info' },
+                          { key: 'logistics', label: 'Logistics / Civil Affairs' },
+                          { key: 'command', label: 'Command and Control' },
+                          { key: 'force', label: 'Force Protection' },
+                          { key: 'other', label: 'Other' }
+                        ].map((item) => {
+                          const isOpen = !!readinessExpanded[item.key];
+                          const approvedContent: Record<string, string> = {
+                            maneuver: 'Patrol posture maintained at primary chokepoints. QRF remains on 15‑minute standby. Partner unit coordination ongoing with no deviations reported.',
+                            intel: 'No new credible threats reported in the last 12 hours. Open‑source monitoring stable. Liaison updates pending next intel brief.',
+                            logistics: 'Supply status green. Fuel and maintenance logs updated. Civil affairs coordination continuing with local agencies and port authority.',
+                            command: 'Command post fully staffed. Communications checks complete across all channels. Incident action plan updates distributed to section leads.',
+                            force: 'Force protection posture remains elevated. Access control measures in place. No security violations or perimeter breaches reported.',
+                            other: 'No additional readiness concerns reported. Monitoring continues with standard reporting cadence.'
+                          };
+                          return (
+                            <div
+                              key={item.key}
+                              className="border border-border rounded-lg overflow-hidden"
+                              style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+                            >
+                              <div
+                                className={`p-3 ${isOpen ? 'border-b border-border' : ''} cursor-pointer`}
+                                onClick={() =>
+                                  setReadinessExpanded(prev => ({
+                                    ...prev,
+                                    [item.key]: !isOpen
+                                  }))
+                                }
+                              >
+                                <div className="flex items-start gap-2">
+                                  {isOpen ? (
+                                    <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                  )}
+                                  <div className="flex-1">
+                                    <span className="caption text-white">{item.label}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {isOpen && (
+                                <div className="p-4 space-y-3 bg-card/50">
+                                  <p className="caption text-white whitespace-pre-wrap">
+                                    {approvedContent[item.key]}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {activeSitrepTab === 2 && (
-                            <div>
-                              <p className="font-semibold mb-2">Part 2: Current Situation</p>
-                              <p>This is placeholder content for Part 2 of the SITREP. This section would detail the current operational situation including weather conditions, vessel traffic, port status, and any active incidents or concerns affecting the area of responsibility.</p>
-                            </div>
-                          )}
-                          {activeSitrepTab === 3 && (
-                            <div>
-                              <p className="font-semibold mb-2">Part 3: Operational Status</p>
-                              <p>This is placeholder content for Part 3 of the SITREP. This section would provide detailed information about unit deployments, ongoing operations, search and rescue activities, and the operational readiness of all assets in the region.</p>
-                            </div>
-                          )}
-                          {activeSitrepTab === 4 && (
-                            <div>
-                              <p className="font-semibold mb-2">Part 4: Resources & Assets</p>
-                              <p>This is placeholder content for Part 4 of the SITREP. This section would outline available resources, asset allocation, equipment status, personnel readiness, and any resource constraints or logistical considerations.</p>
-                            </div>
-                          )}
-                          {activeSitrepTab === 5 && (
-                            <div>
-                              <p className="font-semibold mb-2">Part 5: Notable Events & Next Steps</p>
-                              <p>This is placeholder content for Part 5 of the SITREP. This section would highlight significant events from the operational period, completed exercises or assessments, and outline planned activities and next operational steps.</p>
-                            </div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
-                    ) : (
-                      <div className="bg-input-background border border-border rounded p-3 min-h-[480px]">
-                        <p className="caption text-white whitespace-pre-wrap">
-                          {filterMode === 'region' && selectedRegion === 'sector-new-york' 
-                            ? (sitrepContent || `SITUATION REPORT - SECTOR NEW YORK
-DHS World Cup Security Operations - NYC Metro Area
-DTG: 281430Z JUN 2026
-
-EXECUTIVE SUMMARY:
-Sector New York maintains elevated security posture for FIFA World Cup 2026 operations. All maritime security zones active around NYC waterfront venues. Enhanced port security protocols in effect. Coordination with NYPD, Port Authority, and international maritime partners operating at full capacity. No credible maritime threats identified in past 24 hours.
-
-CURRENT SITUATION:
-- Weather: Partly cloudy, seas 2-3 ft, winds SW 10-15 kts, visibility 8+ nm
-- Maritime Security Zones: 7 of 7 active (Hudson River, East River, NY Harbor)
-- Vessel Traffic: 127 commercial vessels monitored, 18 spectator vessels permitted
-- Personnel: 85 DHS maritime agents, 12 USCG vessels on patrol, 240 NYPD Harbor Unit
-- Air Support: 2 CBP helicopters on station, 1 USCG MH-65 on standby
-
-OPERATIONAL STATUS:
-Port Security Operations: All ferry terminals implementing enhanced screening. Cargo operations proceeding normally with additional CBP inspections. No delays reported at major terminals.
-
-Maritime Patrol Operations: USCG cutters maintaining continuous presence in Upper Bay and East River. Small boat teams positioned at stadium-adjacent waterways. AIS monitoring 100% of vessel traffic.
-
-Waterborne Spectator Management: Permitted spectator vessels (18) checked in and escorted to designated viewing areas. No unauthorized vessels within restricted zones. Harbor Police enforcing 500-meter security perimeter.
-
-CBRN Maritime Detection: Radiation detection buoys deployed at key chokepoints. Mobile CBRN teams aboard patrol vessels. All readings within normal parameters.
-
-NOTABLE EVENTS:
-- Completed pre-match maritime security sweep (all zones clear)
-- Interdicted 3 unauthorized recreational vessels attempting to enter security zone
-- Coordinated VIP yacht arrival for FIFA delegation at Pier 79
-- Joint exercise with NYPD Harbor Unit demonstrated rapid response capability
-
-NEXT 4 HOURS:
-- Monitor increased ferry traffic during match conclusion
-- Maintain security zones through post-match dispersal
-- Coordinate with TSA for waterfront transit security
-- Prepare for evening VIP yacht departures
-
-POC: Sector New York Command Center +1-212-668-7000 | sectny.ops@uscg.mil`)
-                            : `SITUATION REPORT - FIFA WORLD CUP 2026 SECURITY OPERATIONS
-DHS Northeast Region - MetLife Stadium Complex
-DTG: 281400Z JUN 2026
-
-EXECUTIVE SUMMARY:
-All security checkpoints operational for USA vs Mexico quarterfinal match. Enhanced threat posture maintained with no credible threats identified in past 24 hours. Screening operations proceeding on schedule. 68,000 spectators expected. Coordination with state/local law enforcement and international partners remains strong.
-
-CURRENT SITUATION:
-- Weather: Clear skies, temp 78°F, winds light and variable, excellent visibility
-- Security Checkpoints: 24 of 24 operational (100% capacity)
-- Screening Rate: 2,400 persons/hour average across all entry points
-- Personnel: 240 DHS agents on-site, 850 state/local LEO coordinated
-- Air Space: TFR active 30nm radius, 2 CBP Air interdiction assets overhead
-
-OPERATIONAL STATUS:
-TSA Screening Operations: All 16 magnetometer lanes operational. Enhanced explosive trace detection deployed. K-9 teams positioned at primary screening zones. Average wait time 18 minutes.
-
-CBP Credential Verification: Document authentication teams processing international spectators and credentialed personnel. 2,847 credentials verified, 3 counterfeit documents interdicted.
-
-Secret Service Protection Detail: CAT teams positioned at venue perimeter. Counter-sniper teams deployed at elevated positions. POTUS/VIP arrivals scheduled for 1445L.
-
-CBRN Detection Network: 12 radiation portal monitors active at all entry points. Bio-detection systems operational in HVAC systems. All readings nominal.
-
-NOTABLE EVENTS:
-- Completed pre-match security sweep (all public areas clear)
-- Successfully processed early entry VIP delegation of 150 FIFA officials
-- Counter-UAS system detected and neutralized 2 unauthorized drone incursions
-- Joint Terrorism Task Force maintains real-time intelligence sharing with FBI
-
-NEXT 4 HOURS:
-- Monitor crowd arrival surge (peak expected 1300-1430L)
-- Coordinate mass transit security with TSA Surface Division
-- Maintain elevated surveillance posture through match conclusion
-- Prepare for post-match egress security operations
-
-POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
-                        </p>
-                      </div>
-                    )}
+            ) : (
+              <div>
+                <div className="bg-input-background border border-border rounded p-3 min-h-[240px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      onClick={() => setSitrepLatestFontSize((prev) => Math.max(10, prev - 1))}
+                      className="w-5 h-5 rounded-full border border-white text-white hover:bg-muted/30 transition-colors flex items-center justify-center text-sm"
+                      title="Decrease font size"
+                    >
+                      <span className="relative" style={{ top: '-1px' }}>-</span>
+                    </button>
+                    <button
+                      onClick={() => setSitrepLatestFontSize((prev) => Math.min(40, prev + 1))}
+                      className="w-5 h-5 rounded-full border border-white text-white hover:bg-muted/30 transition-colors flex items-center justify-center text-sm"
+                      title="Increase font size"
+                    >
+                      +
+                    </button>
+                    <span className="text-xs text-white/70">Font size: {sitrepLatestFontSize}px</span>
+                  </div>
+                  <p className="text-white whitespace-pre-wrap" style={{ fontSize: `${sitrepLatestFontSize}px` }}>
+                    {activeSitrepTab === 1 && 'Reporting Unit: Sector Operations Center. Primary POC LCDR Sarah Mitchell. Staffing at 92% with full watch rotation coverage.'}
+                    {activeSitrepTab === 2 && 'Executive Summary: Operational tempo remains steady. Maritime security zones active with high compliance. No significant incidents reported in the last 12 hours.'}
+                    {activeSitrepTab === 9 && 'Risk to Mission: Low. No credible threats or disruptions anticipated. Monitoring continues with elevated readiness posture.'}
+                    {activeSitrepTab === 10 && 'Outstanding RFI/RFR: None at this time. All pending requests resolved in current operational period.'}
+                    {activeSitrepTab === 11 && 'Previous 14‑day Critical Incident Reporting: No critical incidents requiring follow‑on reporting. Prior advisories have been closed.'}
+                    {activeSitrepTab === 12 && 'General Comments: Interagency coordination remains strong. Next brief scheduled for 1800L.'}
+                    {activeSitrepTab === 13 && 'Imagery: No new imagery submitted. Last update includes routine aerial reconnaissance set dated 02/03/2026.'}
+                  </p>
+                </div>
+                <div className="mt-2">
+                  <span className="inline-flex items-center justify-between rounded-full bg-[#14171a] border border-[#6e757c] px-3 py-1 text-sm text-white min-w-[180px]">
+                    <span>Document Alpha.pdf</span>
+                    <button
+                      onClick={() => setPdfPreviewModalOpen(true)}
+                      className="ml-2 p-0.5 hover:bg-muted/30 rounded transition-colors"
+                      title="Preview PDF"
+                    >
+                      <ExternalLink className="w-3 h-3 text-white/70" />
+                    </button>
+                  </span>
+                </div>
+              </div>
+            )}
                   </>
                 )}
               </>
@@ -1125,13 +1131,15 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                     <Label className="text-white text-sm font-semibold">
                       My Draft SITREPs
                     </Label>
-                    <button
-                      onClick={() => setIsDraftModalOpen(true)}
-                      className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <span className="text-white text-xs">+</span>
-                      <span className="caption text-white">Add Draft</span>
-                    </button>
+                    {!isAddingDraft && (
+                      <button
+                        onClick={() => setIsDraftModalOpen(true)}
+                        className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <span className="text-white text-xs">+</span>
+                        <span className="caption text-white">Add Draft</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* Add Draft Form */}
@@ -1139,39 +1147,51 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                     <div className="space-y-3 p-3 bg-background/50 border border-border rounded">
                       {/* Header */}
                       <div className="flex items-center justify-between">
-                        <Label className="text-white text-sm">New Draft SITREP</Label>
+                        <Label className="text-white text-sm">
+                          New Draft SITREP for {regions.find(r => r.id === selectedRegion)?.name || 'Unknown Region'}
+                        </Label>
                       </div>
 
-                      {/* Draft SITREP Tabs */}
-                      <div className="flex items-center gap-1 border-b border-border">
-                        {[1, 2, 3, 4, 5].map((tabNum) => {
-                          const isActive = tabNum === activeDraftTab;
-                          return (
-                            <button
-                              key={tabNum}
-                              onClick={() => setActiveDraftTab(tabNum)}
-                              className={`relative px-4 py-2 transition-colors whitespace-nowrap ${
-                                isActive
-                                  ? 'text-accent'
-                                  : 'text-foreground hover:text-accent'
-                              }`}
-                            >
-                              <span className="caption">Tab {tabNum}</span>
-                              {/* Active indicator line */}
-                              {isActive && (
-                                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
-                              )}
-                            </button>
-                          );
-                        })}
+                      {/* Draft SITREP Section Selector */}
+                      <div className="space-y-2">
+                        <Label className="text-white text-sm">Section</Label>
+                        <div className="flex items-center gap-1 overflow-x-auto border-b border-border">
+                          {sitrepSections.map((section) => {
+                            const isActive = activeDraftTab === section.id;
+                            return (
+                              <button
+                                key={section.id}
+                                onClick={() => setActiveDraftTab(section.id)}
+                                className={`relative px-3 py-2 transition-colors whitespace-nowrap ${
+                                  isActive ? 'text-accent' : 'text-foreground hover:text-accent'
+                                }`}
+                              >
+                                <span className="caption">{section.label}</span>
+                                {isActive && (
+                                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {/* Generate Button and Data Sources */}
                       <div className="flex gap-2">
-                        <button
+                        {activeDraftTab !== 8 && (
+                          <button
                           onClick={() => {
-                            // Generate AI draft content (placeholder for now)
-                            console.log('Generate draft clicked');
+                            const draftByTab: Record<number, string> = {
+                              1: 'Contact Information:\nIncident Commander: LCDR Sarah Mitchell [1]\nPrimary Contact: +1-212-555-0147\nEmail: sarah.mitchell@uscg.mil\nLocation: Sector Operations Center\n\nReferences:\n[1] USCG Sector NYC Duty Roster (02/04/2026 1300L)\n[2] ICS-202 Incident Objectives (Op Period 04)',
+                              2: 'Executive Summary:\nOperational tempo remains steady with no major incidents in the past 12 hours. Maritime security zones are active and compliance is high. Weather conditions are favorable for continued operations. [1]\n\nReferences:\n[1] Port Ops Summary (02/04/2026 1200L)\n[2] NWS Marine Forecast (02/04/2026 1130L)\n[3] USCG Command Center Log (02/04/2026 0900-1200L)',
+                              3: 'Current Situation:\n- Vessel traffic: Moderate (62 commercial vessels monitored) [2]\n- Security zones: 6 of 6 active\n- Personnel: 74 on duty, 18 on standby\n- Weather: Clear skies, seas 2-3 ft, winds SW 10 kts [4]\n\nReferences:\n[1] AIS Traffic Snapshot (02/04/2026 1215L)\n[2] Security Zone Status Report (02/04/2026 1200L)\n[3] Staffing Roll Call (02/04/2026 1230L)\n[4] NWS Marine Obs (02/04/2026 1210L)',
+                              4: 'Actions Taken:\n- Conducted perimeter patrols at designated chokepoints [1]\n- Coordinated with port authority on enhanced screening [2]\n- Updated interagency communications plan [3]\n- Verified readiness of response assets\n\nReferences:\n[1] Patrol Logbook Entries (02/04/2026 0800-1200L)\n[2] Port Authority Coordination Call Notes (02/04/2026 1030L)\n[3] Interagency Comms Plan v3.2 (02/04/2026 0900L)',
+                              5: 'Forecast / Next 12 Hours:\nExpect increased traffic during evening arrival window. Continue elevated patrol posture. No significant weather impacts anticipated. Maintain readiness for rapid response if conditions change. [1]\n\nReferences:\n[1] Vessel Arrival Forecast (02/04/2026 1300L)\n[2] NWS Marine Forecast (02/04/2026 1200L)\n[3] Ops Planning Outlook (02/04/2026 1230L)'
+                            };
+                            setDraftTabContents(prev => ({
+                              ...prev,
+                              [activeDraftTab]: draftByTab[activeDraftTab] || ''
+                            }));
                           }}
                           className="bg-white hover:bg-gray-100 text-black border border-white h-[28px] rounded-[4px] px-4 transition-colors flex items-center justify-center gap-2"
                         >
@@ -1188,91 +1208,108 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                               d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" 
                             />
                           </svg>
-                          <span className="text-xs font-medium">Generate Draft: Tab {activeDraftTab}</span>
+                          <span className="text-xs font-medium">
+                            Generate Draft: {(() => {
+                              const labels: Record<number, string> = {
+                                1: 'Reporting Unit',
+                                2: 'Executive Summary',
+                                8: 'Readiness Assessment / Incident Reporting by Category',
+                                9: 'Risk to Mission',
+                                10: 'Outstanding RFI or RFR',
+                                11: 'Previous (14 day or less) Critical Incident Communications or Intelligence Reporting',
+                                12: 'General Comments',
+                                13: 'Imagery'
+                              };
+                              return labels[activeDraftTab] || `Tab ${activeDraftTab}`;
+                            })()}
+                          </span>
                         </button>
+                        )}
                         
                         {/* Data Sources Multi-Select */}
-                        <Popover open={dataSourcesOpen} onOpenChange={setDataSourcesOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-[28px] justify-start text-left font-normal bg-input-background border-border text-white"
-                            >
-                              {draftDataSources.length > 0 
-                                ? `${draftDataSources.length} source${draftDataSources.length > 1 ? 's' : ''} selected` 
-                                : 'Select data sources'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent align="start" className="w-[200px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 9999 }}>
-                            <Command className="bg-[#222529]">
-                              <CommandList>
-                                <CommandEmpty className="text-white">No sources found.</CommandEmpty>
-                                <CommandGroup>
-                                  {['Web', 'USCG Organization Data', 'Incident Data'].map((source) => (
-                                    <CommandItem
-                                      key={source}
-                                      onSelect={() => {
-                                        setDraftDataSources(prev =>
-                                          prev.includes(source)
-                                            ? prev.filter(s => s !== source)
-                                            : [...prev, source]
-                                        );
-                                      }}
-                                      className="text-white"
-                                    >
-                                      <Checkbox
-                                        checked={draftDataSources.includes(source)}
-                                        className="mr-2"
-                                      />
-                                      {source}
-                                    </CommandItem>
-                                  ))}
-                                  
-                                  {/* Files Item */}
-                                  <div ref={filesItemRef}>
-                                    <CommandItem
-                                      onSelect={(e) => {
-                                        e.preventDefault();
-                                      }}
-                                      onMouseEnter={() => {
-                                        if (filesItemRef.current) {
-                                          const rect = filesItemRef.current.getBoundingClientRect();
-                                          setSubmenuPosition({
-                                            top: rect.top,
-                                            left: rect.right + 4
-                                          });
-                                        }
-                                        setFilesSubmenuOpen(true);
-                                      }}
-                                      className="text-white cursor-pointer"
-                                    >
-                                      <Checkbox
-                                        checked={selectedFiles.length > 0}
-                                        className="mr-2"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const checked = selectedFiles.length === 0;
-                                          if (checked) {
-                                            setSelectedFiles(['File Alpha', 'File Bravo', 'File Charlie', 'File Delta', 'File Echo']);
-                                            if (!draftDataSources.includes('Files')) {
-                                              setDraftDataSources(prev => [...prev, 'Files']);
-                                            }
-                                          } else {
-                                            setSelectedFiles([]);
-                                            setDraftDataSources(prev => prev.filter(s => s !== 'Files'));
-                                          }
+                        {activeDraftTab !== 8 && (
+                          <Popover open={dataSourcesOpen} onOpenChange={setDataSourcesOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-[28px] justify-start text-left font-normal bg-input-background border-border text-white"
+                              >
+                                {draftDataSources.length > 0 
+                                  ? `${draftDataSources.length} source${draftDataSources.length > 1 ? 's' : ''} selected` 
+                                  : 'Select data sources'}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-[200px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 9999 }}>
+                              <Command className="bg-[#222529]">
+                                <CommandList>
+                                  <CommandEmpty className="text-white">No sources found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {['Web', 'USCG Organization Data', 'Incident Data'].map((source) => (
+                                      <CommandItem
+                                        key={source}
+                                        onSelect={() => {
+                                          setDraftDataSources(prev =>
+                                            prev.includes(source)
+                                              ? prev.filter(s => s !== source)
+                                              : [...prev, source]
+                                          );
                                         }}
-                                      />
-                                      <span className="flex-1">Files</span>
-                                      <ChevronRight className="w-4 h-4 ml-auto" />
-                                    </CommandItem>
-                                  </div>
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                                        className="text-white"
+                                      >
+                                        <Checkbox
+                                          checked={draftDataSources.includes(source)}
+                                          className="mr-2"
+                                        />
+                                        {source}
+                                      </CommandItem>
+                                    ))}
+                                    
+                                    {/* Files Item */}
+                                    <div ref={filesItemRef}>
+                                      <CommandItem
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                        }}
+                                        onMouseEnter={() => {
+                                          if (filesItemRef.current) {
+                                            const rect = filesItemRef.current.getBoundingClientRect();
+                                            setSubmenuPosition({
+                                              top: rect.top,
+                                              left: rect.right + 4
+                                            });
+                                          }
+                                          setFilesSubmenuOpen(true);
+                                        }}
+                                        className="text-white cursor-pointer"
+                                      >
+                                        <Checkbox
+                                          checked={selectedFiles.length > 0}
+                                          className="mr-2"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const checked = selectedFiles.length === 0;
+                                            if (checked) {
+                                              setSelectedFiles(['File Alpha', 'File Bravo', 'File Charlie', 'File Delta', 'File Echo']);
+                                              if (!draftDataSources.includes('Files')) {
+                                                setDraftDataSources(prev => [...prev, 'Files']);
+                                              }
+                                            } else {
+                                              setSelectedFiles([]);
+                                              setDraftDataSources(prev => prev.filter(s => s !== 'Files'));
+                                            }
+                                          }}
+                                        />
+                                        <span className="flex-1">Files</span>
+                                        <ChevronRight className="w-4 h-4 ml-auto" />
+                                      </CommandItem>
+                                    </div>
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
                         
                         {/* Files Submenu - Rendered Outside */}
                         {filesSubmenuOpen && submenuPosition && (
@@ -1332,18 +1369,298 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                           </div>
                         )}
                       </div>
+                      {activeDraftTab === 8 ? (
+                        <div className="space-y-3">
+                          {[
+                            { key: 'maneuver', label: 'Maneuver & Force' },
+                            { key: 'intel', label: 'Intelligence & Info' },
+                            { key: 'logistics', label: 'Logistics / Civil Affairs' },
+                            { key: 'command', label: 'Command and Control' },
+                            { key: 'force', label: 'Force Protection' },
+                            { key: 'other', label: 'Other' }
+                          ].map((item) => {
+                            const isOpen = !!readinessExpanded[item.key];
+                            return (
+                              <div
+                                key={item.key}
+                                className="border border-border rounded-lg overflow-hidden"
+                                style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+                              >
+                                <div
+                                  className={`p-3 ${isOpen ? 'border-b border-border' : ''} cursor-pointer`}
+                                  onClick={() =>
+                                    setReadinessExpanded(prev => ({
+                                      ...prev,
+                                      [item.key]: !isOpen
+                                    }))
+                                  }
+                                >
+                                  <div className="flex items-start gap-2">
+                                    {isOpen ? (
+                                      <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                    )}
+                                    <div className="flex-1">
+                                      <span className="caption text-white">{item.label}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                {isOpen && (
+                                  <div className="p-4 space-y-3 bg-card/50">
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <button
+                                          onClick={() => {
+                                          const key = item.key;
+                                            const generated =
+                                            item.key === 'maneuver'
+                                                ? 'Maneuver & Force:\n- Patrol posture maintained at chokepoints\n- Quick reaction force on 15-minute standby\n- Coordination with partner units ongoing'
+                                              : item.key === 'intel'
+                                              ? 'Intelligence & Info:\n- No new credible threats reported\n- Open-source monitoring stable\n- Liaison updates pending next intel brief'
+                                              : `${item.label}:\n- Placeholder generated draft content`;
+                                            setModalDraftContents(prev => ({
+                                              ...prev,
+                                              [key]: generated
+                                            }));
+                                          }}
+                                          className="bg-white hover:bg-gray-100 text-black border border-white h-[28px] rounded-[4px] px-4 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                          <svg 
+                                            className="w-4 h-4" 
+                                            fill="none" 
+                                            viewBox="0 0 24 24" 
+                                            stroke="currentColor"
+                                          >
+                                            <path 
+                                              strokeLinecap="round" 
+                                              strokeLinejoin="round" 
+                                              strokeWidth={2} 
+                                              d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" 
+                                            />
+                                          </svg>
+                                          <span className="text-xs font-medium">
+                                            Generate Draft: {item.label}
+                                          </span>
+                                        </button>
+                                        <Popover
+                                          open={readinessDataSourcesOpenKey === item.key}
+                                          onOpenChange={(open) =>
+                                            setReadinessDataSourcesOpenKey(open ? item.key : null)
+                                          }
+                                        >
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-[28px] justify-start text-left font-normal bg-input-background border-border text-white"
+                                            >
+                                              {draftDataSources.length > 0 
+                                                ? `${draftDataSources.length} source${draftDataSources.length > 1 ? 's' : ''} selected` 
+                                                : 'Select data sources'}
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent align="start" className="w-[200px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 9999 }}>
+                                            <Command className="bg-[#222529]">
+                                              <CommandList>
+                                                <CommandEmpty className="text-white">No sources found.</CommandEmpty>
+                                                <CommandGroup>
+                                                  {['Web', 'USCG Organization Data', 'Incident Data'].map((source) => (
+                                                    <CommandItem
+                                                      key={source}
+                                                      onSelect={() => {
+                                                        setDraftDataSources(prev =>
+                                                          prev.includes(source)
+                                                            ? prev.filter(s => s !== source)
+                                                            : [...prev, source]
+                                                        );
+                                                      }}
+                                                      className="text-white"
+                                                    >
+                                                      <Checkbox
+                                                        checked={draftDataSources.includes(source)}
+                                                        className="mr-2"
+                                                      />
+                                                      {source}
+                                                    </CommandItem>
+                                                  ))}
+                                                  <div
+                                                    className="text-white"
+                                                    style={{
+                                                      height: '1px',
+                                                      backgroundColor: '#6e757c',
+                                                      margin: '4px 8px'
+                                                    }}
+                                                  />
+                                                  <div
+                                                    ref={readinessFilesItemRef}
+                                                    className="relative"
+                                                    onMouseEnter={() => {
+                                                      if (readinessFilesItemRef.current) {
+                                                        const rect = readinessFilesItemRef.current.getBoundingClientRect();
+                                                        setReadinessSubmenuPosition({ top: rect.top, left: rect.right + 4 });
+                                                      }
+                                                      setReadinessFilesSubmenuOpen(true);
+                                                    }}
+                                                    onMouseLeave={() => {
+                                                      setReadinessFilesSubmenuOpen(true);
+                                                    }}
+                                                  >
+                                                    <div className="flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-[#14171a] rounded-sm">
+                                                      <div className="flex items-center">
+                                                        <Checkbox
+                                                          checked={selectedFiles.length > 0}
+                                                          className="mr-2"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const checked = selectedFiles.length === 0;
+                                                            if (checked) {
+                                                              setSelectedFiles(['File Alpha', 'File Bravo', 'File Charlie', 'File Delta', 'File Echo']);
+                                                              if (!draftDataSources.includes('Files')) {
+                                                                setDraftDataSources(prev => [...prev, 'Files']);
+                                                              }
+                                                            } else {
+                                                              setSelectedFiles([]);
+                                                              setDraftDataSources(prev => prev.filter(s => s !== 'Files'));
+                                                            }
+                                                          }}
+                                                        />
+                                                        <span>Files</span>
+                                                      </div>
+                                                      <ChevronRight className="w-4 h-4 text-white/70" />
+                                                    </div>
+                                                  </div>
+                                                </CommandGroup>
+                                              </CommandList>
+                                            </Command>
+                                          </PopoverContent>
+                                        </Popover>
+                                      </div>
+                                      <Textarea
+                                        value={modalDraftContents[item.key] || ''}
+                                        onChange={(e) => {
+                                          const key = item.key;
+                                          setModalDraftContents(prev => ({
+                                            ...prev,
+                                            [key]: e.target.value
+                                          }));
+                                        }}
+                                        placeholder={`Enter content for ${item.label}...`}
+                                        className="bg-input-background border-border text-white resize-none"
+                                        style={{ minHeight: '140px' }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {readinessFilesSubmenuOpen && readinessSubmenuPosition && (
+                            <div
+                              data-submenu="files-readiness"
+                              className="fixed w-[200px] bg-[#222529] border border-[#6e757c] rounded-md shadow-lg"
+                              style={{
+                                zIndex: 10001,
+                                left: `${readinessSubmenuPosition.left}px`,
+                                top: `${readinessSubmenuPosition.top}px`
+                              }}
+                            >
+                              <Command className="bg-[#222529]">
+                                <CommandList>
+                                  <CommandGroup>
+                                    {['File Alpha', 'File Bravo', 'File Charlie', 'File Delta', 'File Echo'].map((file) => (
+                                      <CommandItem
+                                        key={file}
+                                        onSelect={() => {
+                                          setSelectedFiles(prev => {
+                                            const newFiles = prev.includes(file)
+                                              ? prev.filter(f => f !== file)
+                                              : [...prev, file];
 
-                      <Textarea
-                        value={draftTabContents[activeDraftTab]}
-                        onChange={(e) => setDraftTabContents({
-                          ...draftTabContents,
-                          [activeDraftTab]: e.target.value
-                        })}
-                        placeholder={`Enter content for Tab ${activeDraftTab}...`}
-                        className="bg-input-background border-border resize-none"
-                        style={{ minHeight: '240px', height: '240px' }}
-                      />
+                                            if (newFiles.length > 0 && !draftDataSources.includes('Files')) {
+                                              setDraftDataSources(prevSources => [...prevSources, 'Files']);
+                                            } else if (newFiles.length === 0) {
+                                              setDraftDataSources(prevSources => prevSources.filter(s => s !== 'Files'));
+                                            }
+
+                                            return newFiles;
+                                          });
+                                        }}
+                                        className="text-white"
+                                      >
+                                        <Checkbox
+                                          checked={selectedFiles.includes(file)}
+                                          className="mr-2"
+                                        />
+                                        <span className="flex-1">{file}</span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFilePreviewModal(file);
+                                          }}
+                                          className="ml-2 p-1 hover:bg-muted/50 rounded transition-colors"
+                                          title="Open in modal"
+                                        >
+                                          <ExternalLink className="w-3 h-3 text-white" />
+                                        </button>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="relative">
+                            <TiptapEditor
+                              content={draftTabContents[activeDraftTab] || ''}
+                              onChange={(html) => {
+                                setDraftTabContents({
+                                  ...draftTabContents,
+                                  [activeDraftTab]: html
+                                });
+                              }}
+                              placeholder={(() => {
+                                const labels: Record<number, string> = {
+                                  1: 'Enter reporting unit information...',
+                                  2: 'Enter executive summary...',
+                                  3: 'Enter current situation...',
+                                  4: 'Enter actions taken...',
+                                  5: 'Enter forecast for next 12 hours...',
+                                  8: 'Select a category to enter readiness assessment...',
+                                  9: 'Enter risk to mission...',
+                                  10: 'Enter outstanding RFI or RFR...',
+                                  11: 'Enter previous critical incident reporting...',
+                                  12: 'Enter general comments...',
+                                  13: 'Add imagery information...'
+                                };
+                                return labels[activeDraftTab] || `Enter content for section ${activeDraftTab}...`;
+                              })()}
+                              minHeight="240px"
+                            />
+                          </div>
+                          <button
+                            onClick={() => {
+                              console.log('Add attachment clicked');
+                            }}
+                            className="mt-2 text-white border border-[#6e757c] rounded-[4px] px-3 py-1.5 hover:bg-[#1a1d21] transition-colors inline-flex items-center gap-1"
+                          >
+                            <span className="text-lg leading-none">+</span>
+                            <span className="text-sm">Add Attachment</span>
+                          </button>
+                        </div>
+                      )}
                       <div className="flex gap-3">
+                        <Button
+                          onClick={() => {
+                            setIsDraftModalOpen(true);
+                          }}
+                          className="bg-primary hover:bg-primary/90 px-6 py-0.5 h-auto text-sm"
+                        >
+                          Submit to Section Chief
+                        </Button>
                         <Button
                           onClick={() => {
                             // Save draft logic would go here
@@ -1425,6 +1742,7 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
       <div className="space-y-4">
         {filtered.map((source) => {
           const isExpanded = expandedSources.has(source.id);
+          const isExpandable = source.id !== 'src0a' && source.id !== 'src0b' && source.id !== 'src0d';
           return (
             <div
               key={source.id}
@@ -1434,28 +1752,186 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
               <div className={`p-3 ${isExpanded ? 'border-b border-border' : ''}`}>
                 <div className="flex items-start justify-between">
                   <div
-                    className="flex items-start gap-2 flex-1 cursor-pointer"
+                    className={`flex items-start gap-2 flex-1 ${isExpandable ? 'cursor-pointer' : ''}`}
                     onClick={() => {
+                      if (!isExpandable) return;
                       toggleSource(source.id);
                       if (onAddAIContext) {
                         onAddAIContext(source.name);
                       }
                     }}
                   >
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                    {isExpandable ? (
+                      isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                      )
                     ) : (
-                      <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                      <div className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
                       <span className="caption text-white">{source.name}</span>
                       {!isExpanded && (
                         <div className="flex items-center gap-3 mt-1">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getStatusColor(source.status) }} />
-                            <span className="caption" style={{ color: getStatusColor(source.status) }}>{source.status}</span>
-                          </div>
                           <span className="caption text-white/70">Last updated: {source.lastUpdated}</span>
+                        </div>
+                      )}
+                      {source.id === 'src0a' && (
+                        <div className="mt-3">
+                          <Popover open={portStatusPopoverOpen} onOpenChange={setPortStatusPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <button
+                                className="flex-1 w-full bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-start justify-between py-1"
+                                style={{ 
+                                  fontFamily: "'Open Sans', sans-serif",
+                                  fontSize: '12px',
+                                  fontWeight: 400,
+                                  lineHeight: '18px'
+                                }}
+                              >
+                                <span className="block whitespace-normal break-words text-left leading-snug pr-2">
+                                  {portStatusCondition}
+                                </span>
+                                <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#222529] border-[#6e757c]"
+                              align="start"
+                            >
+                              <Command className="bg-[#222529]">
+                                <CommandInput
+                                  placeholder="Search port condition..."
+                                  className="h-9 caption text-white"
+                                  style={{ 
+                                    fontFamily: "'Open Sans', sans-serif",
+                                    fontSize: '12px',
+                                    fontWeight: 400,
+                                    lineHeight: '18px'
+                                  }}
+                                />
+                                <CommandList className="max-h-56">
+                                  <CommandEmpty className="text-white">No results found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {portStatusOptions.map((option) => (
+                                      <CommandItem
+                                        key={option}
+                                        value={option}
+                                        onSelect={() => {
+                                          setPortStatusCondition(option);
+                                          setPortStatusPopoverOpen(false);
+                                        }}
+                                        className="caption text-white w-full max-w-full !whitespace-normal !break-words !h-auto items-start flex-wrap"
+                                      >
+                                        <span className="block w-full max-w-full !whitespace-normal !break-words text-left leading-snug">
+                                          {option}
+                                        </span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
+                      {source.id === 'src0b' && (
+                        <div className="mt-3">
+                          <div className="caption text-white flex flex-wrap items-center gap-1">
+                            <span>{currentRegionName} has achieved HURCON</span>
+                            <Popover open={hurconPopoverOpen} onOpenChange={setHurconPopoverOpen}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  className="bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center gap-1 h-[24px]"
+                                  style={{ 
+                                    fontFamily: "'Open Sans', sans-serif",
+                                    fontSize: '12px',
+                                    fontWeight: 400,
+                                    lineHeight: '18px'
+                                  }}
+                                >
+                                  <span className="block">{hurconStatus}</span>
+                                  <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#222529] border-[#6e757c]"
+                                align="start"
+                              >
+                                <Command className="bg-[#222529]">
+                                  <CommandList className="max-h-56">
+                                    <CommandGroup>
+                                      {hurconOptions.map((option) => (
+                                        <CommandItem
+                                          key={option}
+                                          value={option}
+                                          onSelect={() => {
+                                            setHurconStatus(option);
+                                            setHurconPopoverOpen(false);
+                                          }}
+                                          className="caption text-white w-full max-w-full !whitespace-normal !break-words !h-auto items-start flex-wrap"
+                                        >
+                                          <span className="block w-full max-w-full !whitespace-normal !break-words text-left leading-snug">
+                                            {option}
+                                          </span>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      )}
+                      {source.id === 'src0d' && (
+                        <div className="mt-3">
+                          <div className="caption text-white flex flex-wrap items-center gap-1">
+                            <span>{currentRegionName} has achieved COOP</span>
+                            <Popover open={coopPopoverOpen} onOpenChange={setCoopPopoverOpen}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  className="bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center gap-1 h-[24px]"
+                                  style={{
+                                    fontFamily: "'Open Sans', sans-serif",
+                                    fontSize: '12px',
+                                    fontWeight: 400,
+                                    lineHeight: '18px'
+                                  }}
+                                >
+                                  <span className="block">{coopStatus}</span>
+                                  <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#222529] border-[#6e757c]"
+                                align="start"
+                              >
+                                <Command className="bg-[#222529]">
+                                  <CommandList className="max-h-56">
+                                    <CommandGroup>
+                                      {coopOptions.map((option) => (
+                                        <CommandItem
+                                          key={option}
+                                          value={option}
+                                          onSelect={() => {
+                                            setCoopStatus(option);
+                                            setCoopPopoverOpen(false);
+                                          }}
+                                          className="caption text-white w-full max-w-full !whitespace-normal !break-words !h-auto items-start flex-wrap"
+                                        >
+                                          <span className="block w-full max-w-full !whitespace-normal !break-words text-left leading-snug">
+                                            {option}
+                                          </span>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1501,24 +1977,120 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
 
               {isExpanded && (
                 <div className="p-4 space-y-4 bg-card/50">
-                  {/* Only show these sections for non-Active Incidents items */}
-                  {source.id !== 'src0' && (
-                    <>
-                      {source.description && (
-                        <div>
-                          <label className="text-white mb-1 block">Description</label>
-                          <p className="caption text-white">{source.description}</p>
+                  {source.id === 'src0f' ? (
+                    <div className="space-y-3">
+                      {/* Civil Disturbance Alert - Grist Mill Social Media (clone) */}
+                      <div
+                        className="border border-border rounded-lg overflow-hidden"
+                        style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+                      >
+                        <div className={`p-3 ${cirAlertExpanded ? 'border-b border-border' : ''}`}>
+                          <div className="flex items-start justify-between">
+                            <div
+                              className="flex items-start gap-2 flex-1 cursor-pointer"
+                              onClick={() => setCirAlertExpanded(prev => !prev)}
+                            >
+                              {cirAlertExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="caption text-white">Civil Disturbance Emerging Near MetLife Stadium</span>
+                                  <span
+                                    className="caption px-2 py-0.5 rounded text-xs"
+                                    style={{
+                                      backgroundColor: '#DC262620',
+                                      color: '#DC2626',
+                                      border: '1px solid #DC262660'
+                                    }}
+                                  >
+                                    Critical
+                                  </span>
+                                </div>
+                                {!cirAlertExpanded && (
+                                  <div className="space-y-2 mt-1">
+                                    <div className="flex items-center gap-3">
+                                      <span className="caption text-white">Grist Mill via social media</span>
+                                      <span className="caption text-white">13:25</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  console.log('Zoom to alert location');
+                                }}
+                                className="p-1 hover:bg-muted/30 rounded transition-colors"
+                                title="Zoom to alert location"
+                              >
+                                <Map className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div>
-                        <label className="text-white mb-1 block">Last Updated</label>
-                        <p className="caption text-white">{source.lastUpdated}</p>
+
+                        {cirAlertExpanded && (
+                          <div className="p-4 space-y-4 bg-card/50">
+                            <div>
+                              <label className="text-white mb-1 block">Civil Disturbance Alert</label>
+                              <p className="caption text-white">
+                                Social media intelligence indicates emerging civil disturbance near MetLife Stadium main entrance on Route 120 / Paterson Plank Road. Crowd size estimated at 200-300 individuals based on multiple geotagged posts. Social media users describe opposition to the Iranian soccer team playing in a match today at 14:00 EST.
+                              </p>
+                            </div>
+
+                            <div>
+                              <label className="text-white mb-1 block">Data Source</label>
+                              <p className="caption text-white">Grist Mill via social media</p>
+                            </div>
+
+                            <div>
+                              <label className="text-white mb-1 block">Location</label>
+                              <p className="caption text-white">Vicinity of Metlife Stadium</p>
+                            </div>
+
+                            <div>
+                              <label className="text-white mb-1 block">Recommended Actions</label>
+                              <Button
+                                onClick={() => {
+                                  console.log('Create Incident & Activate IMT');
+                                }}
+                                className="bg-primary hover:bg-primary/90 text-white px-3 h-auto text-xs"
+                                style={{ paddingTop: '4px', paddingBottom: '4px' }}
+                              >
+                                Create Incident & Activate IMT
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {source.dataSources && (
-                        <div>
-                          <label className="text-white mb-1 block">Data Sources</label>
-                          <p className="caption text-white">{source.dataSources}</p>
-                        </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Only show these sections for non-Active Incidents items */}
+                      {source.id !== 'src0' && (
+                        <>
+                          {source.description && (
+                            <div>
+                              <label className="text-white mb-1 block">Description</label>
+                              <p className="caption text-white">{source.description}</p>
+                            </div>
+                          )}
+                          <div>
+                            <label className="text-white mb-1 block">Last Updated</label>
+                            <p className="caption text-white">{source.lastUpdated}</p>
+                          </div>
+                          {source.dataSources && (
+                            <div>
+                              <label className="text-white mb-1 block">Data Sources</label>
+                              <p className="caption text-white">{source.dataSources}</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </>
                   )}
@@ -1542,23 +2114,33 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                               ) : (
                                 <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
                               )}
-                              <div className="flex-1">
+                              <div className="flex-1 flex items-center justify-between">
                                 <span className="caption text-white">Platform Charlie Gas Leak — Block 892 Production Facility</span>
-                                {!expandedChildIncidents.has('child-incident-1') && (
-                                  <div className="flex items-center gap-3 mt-1">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-red-500" />
-                                      <span className="caption text-red-500">Critical</span>
-                                    </div>
-                                    <span className="caption text-white/70">Emergency Response Active</span>
-                                  </div>
-                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    console.log('Show on map clicked');
+                                  }}
+                                  className="p-1 hover:bg-muted/30 rounded transition-colors ml-2"
+                                  title="Show on map"
+                                >
+                                  <Map className="w-3 h-3 text-white" />
+                                </button>
                               </div>
                             </div>
                           </div>
                           
                           {expandedChildIncidents.has('child-incident-1') && (
                             <div className="p-3 space-y-3 bg-card/30">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  console.log('Incident Workspace clicked');
+                                }}
+                                className="bg-[#01669f] h-[22.75px] rounded-[4px] px-4 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center mb-3"
+                              >
+                                <p className="caption text-nowrap text-white">Incident Workspace</p>
+                              </button>
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
                                   <label className="caption text-white/70 mb-1 block">Incident Category</label>
@@ -1568,13 +2150,80 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                                   <label className="caption text-white/70 mb-1 block">Operational Period</label>
                                   <p className="caption text-white">OP-4: 12/20/2025 06:00 - 12/20/2025 18:00</p>
                                 </div>
-                                <div>
-                                  <label className="caption text-white/70 mb-1 block">Incident Commander</label>
-                                  <p className="caption text-white">Robert Martinez, ExxonMobil</p>
+                              </div>
+                              
+                              {/* SITREP Section */}
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <label className="caption text-white/70">Latest Approved SITREP - Published 12/20/2025 13:45</label>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSitrepModalOpen('child-incident-1');
+                                      setSitrepModalTab(1);
+                                    }}
+                                    className="p-1 hover:bg-muted/30 rounded transition-colors"
+                                    title="Open in modal"
+                                  >
+                                    <ExternalLink className="w-3 h-3 text-white/70" />
+                                  </button>
                                 </div>
                                 <div>
-                                  <label className="caption text-white/70 mb-1 block">SITREP</label>
-                                  <p className="caption text-white">SITREP #8 - Published 12/20/2025 13:45</p>
+                                  {/* SITREP Tabs */}
+                                  <div className="flex items-center gap-1 border-b border-border px-3 pt-3">
+                                    {[1, 2, 3, 4, 5].map((tabNum) => {
+                                      const isActive = tabNum === childIncident1SitrepTab;
+                                      return (
+                                        <button
+                                          key={tabNum}
+                                          onClick={() => setChildIncident1SitrepTab(tabNum)}
+                                          className={`relative px-3 py-1.5 transition-colors whitespace-nowrap text-xs ${
+                                            isActive
+                                              ? 'text-accent'
+                                              : 'text-foreground hover:text-accent'
+                                          }`}
+                                        >
+                                          <span className="caption">Tab {tabNum}</span>
+                                          {isActive && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  
+                                  <div className="p-3 space-y-3">
+                                    {childIncident1SitrepTab === 1 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Contact Information</label>
+                                        <p className="caption text-white text-xs">Incident Commander: Robert Martinez, ExxonMobil | Contact: +1-504-555-0147 | Location: Block 892 Platform Charlie</p>
+                                      </div>
+                                    )}
+                                    {childIncident1SitrepTab === 2 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Executive Summary</label>
+                                        <p className="caption text-white text-xs">At 08:45 local time, Platform Charlie experienced a catastrophic natural gas leak from Well #3 production manifold. Emergency shutdown procedures were activated immediately. All 47 personnel successfully evacuated to secondary platform. USCG Sector New Orleans dispatched to establish 2-nautical mile safety zone. Production operations suspended across Block 892 facilities. No injuries reported. Environmental assessment teams en route.</p>
+                                      </div>
+                                    )}
+                                    {childIncident1SitrepTab === 3 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Current Situation</label>
+                                        <p className="caption text-white text-xs">Gas leak rate estimated at 2,400 cubic feet per minute from compromised wellhead valve. Platform control systems indicate pressure anomalies in production manifold. Emergency response vessels maintaining perimeter at 2nm. Prevailing winds SSW at 12 knots dispersing gas cloud offshore. Air quality monitoring shows no hazardous readings at adjacent platforms. Well control specialists mobilizing from Houston with specialized equipment estimated arrival 16:00 hours.</p>
+                                      </div>
+                                    )}
+                                    {childIncident1SitrepTab === 4 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Actions Taken</label>
+                                        <p className="caption text-white text-xs">- Emergency shutdown system activated 08:46<br/>- All personnel evacuated to Platform Delta by 09:15<br/>- USCG notified and safety zone established 09:30<br/>- Adjacent platforms (Bravo, Delta, Echo) on elevated alert status<br/>- Environmental monitoring initiated<br/>- Well control team dispatched from Houston<br/>- Marine traffic advisories issued via VHF Channel 16</p>
+                                      </div>
+                                    )}
+                                    {childIncident1SitrepTab === 5 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Forecast / Next 12 Hours</label>
+                                        <p className="caption text-white text-xs">Well control specialists expected on location 16:00 to assess valve integrity and develop intervention plan. Weather forecast favorable with continued offshore winds through operational period. If valve can be isolated, production restart possible within 48 hours pending safety inspection. Alternative scenario: If wellhead intervention required, expect 7-10 day response timeline. Environmental impact assessment will determine any remediation requirements.</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -1596,23 +2245,33 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                               ) : (
                                 <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
                               )}
-                              <div className="flex-1">
+                              <div className="flex-1 flex items-center justify-between">
                                 <span className="caption text-white">Subsea Pipeline Inspection — Deepwater Export Line 7</span>
-                                {!expandedChildIncidents.has('child-incident-2') && (
-                                  <div className="flex items-center gap-3 mt-1">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-orange-500" />
-                                      <span className="caption text-orange-500">Major</span>
-                                    </div>
-                                    <span className="caption text-white/70">ROV Survey in Progress</span>
-                                  </div>
-                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    console.log('Show on map clicked');
+                                  }}
+                                  className="p-1 hover:bg-muted/30 rounded transition-colors ml-2"
+                                  title="Show on map"
+                                >
+                                  <Map className="w-3 h-3 text-white" />
+                                </button>
                               </div>
                             </div>
                           </div>
                           
                           {expandedChildIncidents.has('child-incident-2') && (
                             <div className="p-3 space-y-3 bg-card/30">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  console.log('Incident Workspace clicked');
+                                }}
+                                className="bg-[#01669f] h-[22.75px] rounded-[4px] px-4 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center mb-3"
+                              >
+                                <p className="caption text-nowrap text-white">Incident Workspace</p>
+                              </button>
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
                                   <label className="caption text-white/70 mb-1 block">Incident Category</label>
@@ -1622,13 +2281,80 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                                   <label className="caption text-white/70 mb-1 block">Operational Period</label>
                                   <p className="caption text-white">OP-4: 12/20/2025 06:00 - 12/20/2025 18:00</p>
                                 </div>
-                                <div>
-                                  <label className="caption text-white/70 mb-1 block">Incident Commander</label>
-                                  <p className="caption text-white">Jennifer Chen, ExxonMobil</p>
+                              </div>
+                              
+                              {/* SITREP Section */}
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <label className="caption text-white/70">SITREP #5 - Published 12/20/2025 12:15</label>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSitrepModalOpen('child-incident-2');
+                                      setSitrepModalTab(1);
+                                    }}
+                                    className="p-1 hover:bg-muted/30 rounded transition-colors"
+                                    title="Open in modal"
+                                  >
+                                    <ExternalLink className="w-3 h-3 text-white/70" />
+                                  </button>
                                 </div>
                                 <div>
-                                  <label className="caption text-white/70 mb-1 block">SITREP</label>
-                                  <p className="caption text-white">SITREP #5 - Published 12/20/2025 12:15</p>
+                                  {/* SITREP Tabs */}
+                                  <div className="flex items-center gap-1 border-b border-border px-3 pt-3">
+                                    {[1, 2, 3, 4, 5].map((tabNum) => {
+                                      const isActive = tabNum === childIncident2SitrepTab;
+                                      return (
+                                        <button
+                                          key={tabNum}
+                                          onClick={() => setChildIncident2SitrepTab(tabNum)}
+                                          className={`relative px-3 py-1.5 transition-colors whitespace-nowrap text-xs ${
+                                            isActive
+                                              ? 'text-accent'
+                                              : 'text-foreground hover:text-accent'
+                                          }`}
+                                        >
+                                          <span className="caption">Tab {tabNum}</span>
+                                          {isActive && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  
+                                  <div className="p-3 space-y-3">
+                                    {childIncident2SitrepTab === 1 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Contact Information</label>
+                                        <p className="caption text-white text-xs">Operations Manager: Jennifer Chen, ExxonMobil | Contact: +1-504-555-0198 | Location: Deepwater Export Line 7, Mile Marker 47</p>
+                                      </div>
+                                    )}
+                                    {childIncident2SitrepTab === 2 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Executive Summary</label>
+                                        <p className="caption text-white text-xs">Routine integrity survey of Deepwater Export Line 7 detected minor coating degradation at multiple locations between MM 45-52. ROV inspection commenced 06:00 to assess extent and severity. Line remains operational at reduced pressure (800 PSI, normal 1,200 PSI). No leaks detected. Cathodic protection readings within acceptable parameters. Survey completion expected by 18:00 today.</p>
+                                      </div>
+                                    )}
+                                    {childIncident2SitrepTab === 3 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Current Situation</label>
+                                        <p className="caption text-white text-xs">ROV unit conducting detailed video survey and ultrasonic wall thickness measurements. Five locations showing coating loss 15-25% of protective layer. Pipeline structural integrity maintained with wall thickness readings 92-96% of specification. No active corrosion detected. Flow rate reduced to 45,000 barrels/day (normal 65,000) as precautionary measure. Downstream facilities adjusted for reduced throughput.</p>
+                                      </div>
+                                    )}
+                                    {childIncident2SitrepTab === 4 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Actions Taken</label>
+                                        <p className="caption text-white text-xs">- ROV mobilized and survey initiated at 06:00<br/>- Pipeline pressure reduced to 800 PSI at 06:30<br/>- Production platforms notified of flow restrictions<br/>- Cathodic protection survey completed, systems normal<br/>- Engineering team reviewing preliminary ROV data<br/>- Repair contractor on standby pending assessment<br/>- USCG and BSEE notifications filed per regulations</p>
+                                      </div>
+                                    )}
+                                    {childIncident2SitrepTab === 5 && (
+                                      <div>
+                                        <label className="caption text-white/70 text-xs block mb-1">Forecast / Next 12 Hours</label>
+                                        <p className="caption text-white text-xs">ROV survey completion expected 18:00 with full engineering analysis by 22:00. Based on preliminary findings, anticipate coating repair requirement within 30-day window per regulations. If repairs can be scheduled during next maintenance period (Feb 2026), no production impact. Emergency repair not indicated - pipeline safe for continued operation at reduced pressure. Will resume normal operating pressure upon engineering approval of survey results.</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -1638,7 +2364,7 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                     </div>
                   )}
                   
-                  {source.id !== 'src0' && (
+                  {source.id !== 'src0' && source.id !== 'src0f' && (
                     <div>
                       <label className="text-white mb-1 block">Placeholder Field for Data</label>
                       <p className="caption text-white">Placeholder content</p>
@@ -1695,282 +2421,274 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
         </SheetContent>
       </Sheet>
 
-      {/* Draft SITREP Modal */}
-      <Dialog open={isDraftModalOpen} onOpenChange={setIsDraftModalOpen}>
-        <DialogContent className="bg-[#222529] border-[#6e757c] text-white overflow-hidden flex flex-col" style={{ maxWidth: '71vw', maxHeight: '71vh', width: '71vw' }}>
+      {/* SITREP Popout Modal */}
+      <Dialog open={sitrepPopoutOpen} onOpenChange={setSitrepPopoutOpen}>
+        <DialogContent
+          className="bg-[#222529] border-[#6e757c] text-white max-w-none max-h-none"
+          style={{ width: '56.25vw', minWidth: '56.25vw' }}
+        >
           <DialogHeader>
-            <DialogTitle className="text-white">New Draft SITREP: AOR Alpha</DialogTitle>
+            <DialogTitle className="text-white">
+              SITREP for {filterMode === 'region' 
+                ? regions.find(r => r.id === selectedRegion)?.name 
+                : incidents.find(i => i.id === selectedIncident)?.name}
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-4 py-4">
-            {/* Draft SITREP Tabs */}
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <span className="caption text-white/70 text-xs block">
+                  Authored by LCDR Sarah Mitchell at 14:30 UTC 19 DEC 2025
+                </span>
+                <span className="caption text-white/70 text-xs block">
+                  Approved by CDR Thomas Bradley at 15:00 UTC 19 DEC 2025
+                </span>
+              </div>
+              {/* SITREP Section Selector */}
+              <div className="space-y-2">
+                <Label className="text-white text-sm">Section</Label>
+                <div className="flex items-center gap-1 overflow-x-auto border-b border-border">
+                  {sitrepSections.map((section) => {
+                    const isActive = sitrepPopoutSection === section.id;
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => setSitrepPopoutSection(section.id)}
+                        className={`relative px-3 py-2 transition-colors whitespace-nowrap ${
+                          isActive ? 'text-accent' : 'text-foreground hover:text-accent'
+                        }`}
+                      >
+                        <span className="caption">{section.label}</span>
+                        {isActive && (
+                          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {sitrepPopoutSection === 8 ? (
+              <div className="space-y-3">
+                {[
+                  { key: 'maneuver', label: 'Maneuver & Force' },
+                  { key: 'intel', label: 'Intelligence & Info' },
+                  { key: 'logistics', label: 'Logistics / Civil Affairs' },
+                  { key: 'command', label: 'Command and Control' },
+                  { key: 'force', label: 'Force Protection' },
+                  { key: 'other', label: 'Other' }
+                ].map((item) => {
+                  const isOpen = !!readinessExpandedPopout[item.key];
+                  const approvedContent: Record<string, string> = {
+                    maneuver: 'Patrol posture maintained at primary chokepoints. QRF remains on 15‑minute standby. Partner unit coordination ongoing with no deviations reported.',
+                    intel: 'No new credible threats reported in the last 12 hours. Open‑source monitoring stable. Liaison updates pending next intel brief.',
+                    logistics: 'Supply status green. Fuel and maintenance logs updated. Civil affairs coordination continuing with local agencies and port authority.',
+                    command: 'Command post fully staffed. Communications checks complete across all channels. Incident action plan updates distributed to section leads.',
+                    force: 'Force protection posture remains elevated. Access control measures in place. No security violations or perimeter breaches reported.',
+                    other: 'No additional readiness concerns reported. Monitoring continues with standard reporting cadence.'
+                  };
+                  return (
+                    <div
+                      key={item.key}
+                      className="border border-border rounded-lg overflow-hidden"
+                      style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+                    >
+                      <div
+                        className={`p-3 ${isOpen ? 'border-b border-border' : ''} cursor-pointer`}
+                        onClick={() =>
+                          setReadinessExpandedPopout(prev => ({
+                            ...prev,
+                            [item.key]: !isOpen
+                          }))
+                        }
+                      >
+                        <div className="flex items-start gap-2">
+                          {isOpen ? (
+                            <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <span className="caption text-white">{item.label}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {isOpen && (
+                        <div className="p-4 space-y-3 bg-card/50">
+                          <p className="caption text-white whitespace-pre-wrap">
+                            {approvedContent[item.key]}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-input-background border border-border rounded p-3 min-h-[240px]">
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => setSitrepPopoutFontSize((prev) => Math.max(10, prev - 1))}
+                    className="w-12 h-6 rounded border border-border text-white hover:bg-muted/30 transition-colors"
+                    title="Decrease font size"
+                  >
+                    -
+                  </button>
+                  <button
+                    onClick={() => setSitrepPopoutFontSize((prev) => Math.min(40, prev + 1))}
+                    className="w-12 h-6 rounded border border-border text-white hover:bg-muted/30 transition-colors"
+                    title="Increase font size"
+                  >
+                    +
+                  </button>
+                  <span className="text-xs text-white/70">Font size: {sitrepPopoutFontSize}px</span>
+                </div>
+                <p className="text-white whitespace-pre-wrap" style={{ fontSize: `${sitrepPopoutFontSize}px` }}>
+                  {sitrepPopoutSection === 1 && 'Reporting Unit: Sector Operations Center. Primary POC LCDR Sarah Mitchell. Staffing at 92% with full watch rotation coverage.'}
+                  {sitrepPopoutSection === 2 && 'Executive Summary: Operational tempo remains steady. Maritime security zones active with high compliance. No significant incidents reported in the last 12 hours.'}
+                  {sitrepPopoutSection === 9 && 'Risk to Mission: Low. No credible threats or disruptions anticipated. Monitoring continues with elevated readiness posture.'}
+                  {sitrepPopoutSection === 10 && 'Outstanding RFI/RFR: None at this time. All pending requests resolved in current operational period.'}
+                  {sitrepPopoutSection === 11 && 'Previous 14‑day Critical Incident Reporting: No critical incidents requiring follow‑on reporting. Prior advisories have been closed.'}
+                  {sitrepPopoutSection === 12 && 'General Comments: Interagency coordination remains strong. Next brief scheduled for 1800L.'}
+                  {sitrepPopoutSection === 13 && 'Imagery: No new imagery submitted. Last update includes routine aerial reconnaissance set dated 02/03/2026.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Child Incident SITREP Modal */}
+      <Dialog open={sitrepModalOpen !== null} onOpenChange={() => setSitrepModalOpen(null)}>
+        <DialogContent 
+          className="bg-[#222529] border-[#6e757c] text-white !w-[calc(100vw-4rem)] !max-w-none"
+          style={{ width: 'calc(100vw - 4rem)', maxWidth: 'none' }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {sitrepModalOpen === 'child-incident-1' 
+                ? 'SITREP for Platform Charlie Gas Leak' 
+                : 'SITREP for Subsea Pipeline Inspection'}
+            </DialogTitle>
+            <p className="caption text-white/70 text-sm mt-2">
+              {sitrepModalOpen === 'child-incident-1'
+                ? 'Published at 12/20/2025 13:45'
+                : 'Latest Approved SITREP for Subsea Pipeline Inspection: Published at 12/20/2025 12:15'}
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* SITREP Tabs */}
             <div className="flex items-center gap-1 border-b border-border">
               {[1, 2, 3, 4, 5].map((tabNum) => {
-                const isActive = tabNum === modalDraftTab;
-                const tabNames: { [key: number]: string } = {
-                  1: 'Contact Info',
-                  2: 'Executive Summary',
-                  3: 'Tab 3',
-                  4: 'Tab 4',
-                  5: 'Tab 5'
-                };
+                const isActive = tabNum === sitrepModalTab;
                 return (
                   <button
                     key={tabNum}
-                    onClick={() => setModalDraftTab(tabNum)}
+                    onClick={() => setSitrepModalTab(tabNum)}
                     className={`relative px-4 py-2 transition-colors whitespace-nowrap ${
                       isActive
                         ? 'text-accent'
                         : 'text-foreground hover:text-accent'
                     }`}
                   >
-                    <span className="caption">{tabNames[tabNum]}</span>
-                    {/* Active indicator line */}
+                    <span className="caption">Tab {tabNum}</span>
                     {isActive && (
                       <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
                     )}
                   </button>
                 );
               })}
-              
-              {/* Add Section Button */}
-              <button
-                onClick={() => {
-                  // Placeholder - does nothing for now
-                  console.log('Add section clicked');
-                }}
-                className="px-3 py-2 text-white/70 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap"
-              >
-                <span className="text-lg leading-none">+</span>
-                <span className="caption text-xs">Add Section</span>
-              </button>
             </div>
-
-            {/* Data Sources and Generate Button */}
-            <div className="flex gap-3">
-              {/* Data Sources Multi-Select */}
-              <Popover open={modalDataSourcesOpen} onOpenChange={setModalDataSourcesOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-[28px] justify-start text-left font-normal bg-input-background border-border text-white"
-                  >
-                    {draftDataSources.length > 0 
-                      ? `${draftDataSources.length} source${draftDataSources.length > 1 ? 's' : ''} selected` 
-                      : '+ Select data sources'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-[200px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 9999 }}>
-                  <Command className="bg-[#222529]">
-                    <CommandList>
-                      <CommandEmpty className="text-white">No sources found.</CommandEmpty>
-                      <CommandGroup>
-                        {['Web', 'USCG Organization Data', 'Incident Data'].map((source) => (
-                          <CommandItem
-                            key={source}
-                            onSelect={() => {
-                              setDraftDataSources(prev =>
-                                prev.includes(source)
-                                  ? prev.filter(s => s !== source)
-                                  : [...prev, source]
-                              );
-                            }}
-                            className="text-white"
-                          >
-                            <Checkbox
-                              checked={draftDataSources.includes(source)}
-                              className="mr-2"
-                            />
-                            {source}
-                          </CommandItem>
-                        ))}
-                        
-                        {/* Files Item */}
-                        <div ref={modalFilesItemRef}>
-                          <CommandItem
-                            onSelect={(e) => {
-                              e.preventDefault();
-                            }}
-                            onMouseEnter={() => {
-                              if (modalFilesItemRef.current) {
-                                const rect = modalFilesItemRef.current.getBoundingClientRect();
-                                setModalSubmenuPosition({
-                                  top: rect.top,
-                                  left: rect.right + 4
-                                });
-                              }
-                              setModalFilesSubmenuOpen(true);
-                            }}
-                            className="text-white cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={modalSelectedFiles.length > 0}
-                              className="mr-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const checked = modalSelectedFiles.length === 0;
-                                if (checked) {
-                                  setModalSelectedFiles(['File Alpha', 'File Bravo', 'File Charlie', 'File Delta', 'File Echo']);
-                                  if (!draftDataSources.includes('Files')) {
-                                    setDraftDataSources(prev => [...prev, 'Files']);
-                                  }
-                                } else {
-                                  setModalSelectedFiles([]);
-                                  setDraftDataSources(prev => prev.filter(s => s !== 'Files'));
-                                }
-                              }}
-                            />
-                            <span className="flex-1">Files</span>
-                            <ChevronRight className="w-4 h-4 ml-auto" />
-                          </CommandItem>
-                        </div>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-
-              {/* Generate Button */}
-              <button
-                onClick={() => {
-                  // Generate AI draft content (placeholder for now)
-                  console.log('Generate draft clicked');
-                }}
-                className="bg-white hover:bg-gray-100 text-black border border-white h-[28px] rounded-[4px] px-4 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg 
-                  className="w-4 h-4" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" 
-                  />
-                </svg>
-                <span className="text-xs font-medium">Generate Draft: {
-                  modalDraftTab === 1 ? 'Contact Info' :
-                  modalDraftTab === 2 ? 'Executive Summary' :
-                  `Tab ${modalDraftTab}`
-                }</span>
-              </button>
+            
+            {/* SITREP Content */}
+            <div className="min-h-[300px]">
+              {sitrepModalOpen === 'child-incident-1' && (
+                <>
+                  {sitrepModalTab === 1 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Contact Information</label>
+                      <p className="caption text-white">Incident Commander: Robert Martinez, ExxonMobil | Contact: +1-504-555-0147 | Location: Block 892 Platform Charlie</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 2 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Executive Summary</label>
+                      <p className="caption text-white">At 08:45 local time, Platform Charlie experienced a catastrophic natural gas leak from Well #3 production manifold. Emergency shutdown procedures were activated immediately. All 47 personnel successfully evacuated to secondary platform. USCG Sector New Orleans dispatched to establish 2-nautical mile safety zone. Production operations suspended across Block 892 facilities. No injuries reported. Environmental assessment teams en route.</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 3 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Current Situation</label>
+                      <p className="caption text-white">Gas leak rate estimated at 2,400 cubic feet per minute from compromised wellhead valve. Platform control systems indicate pressure anomalies in production manifold. Emergency response vessels maintaining perimeter at 2nm. Prevailing winds SSW at 12 knots dispersing gas cloud offshore. Air quality monitoring shows no hazardous readings at adjacent platforms. Well control specialists mobilizing from Houston with specialized equipment estimated arrival 16:00 hours.</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 4 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Actions Taken</label>
+                      <p className="caption text-white">- Emergency shutdown system activated 08:46<br/>- All personnel evacuated to Platform Delta by 09:15<br/>- USCG notified and safety zone established 09:30<br/>- Adjacent platforms (Bravo, Delta, Echo) on elevated alert status<br/>- Environmental monitoring initiated<br/>- Well control team dispatched from Houston<br/>- Marine traffic advisories issued via VHF Channel 16</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 5 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Forecast / Next 12 Hours</label>
+                      <p className="caption text-white">Well control specialists expected on location 16:00 to assess valve integrity and develop intervention plan. Weather forecast favorable with continued offshore winds through operational period. If valve can be isolated, production restart possible within 48 hours pending safety inspection. Alternative scenario: If wellhead intervention required, expect 7-10 day response timeline. Environmental impact assessment will determine any remediation requirements.</p>
+                    </div>
+                  )}
+                </>
+              )}
               
-              {/* Files Submenu - Rendered Outside */}
-              {modalFilesSubmenuOpen && modalSubmenuPosition && (
-                <div 
-                  data-submenu="files-modal"
-                  className="fixed w-[200px] bg-[#222529] border border-[#6e757c] rounded-md shadow-lg"
-                  style={{ 
-                    zIndex: 10001,
-                    left: `${modalSubmenuPosition.left}px`,
-                    top: `${modalSubmenuPosition.top}px`
-                  }}
-                >
-                  <Command className="bg-[#222529]">
-                    <CommandList>
-                      <CommandGroup>
-                        {['File Alpha', 'File Bravo', 'File Charlie', 'File Delta', 'File Echo'].map((file) => (
-                          <CommandItem
-                            key={file}
-                            onSelect={() => {
-                              setModalSelectedFiles(prev => {
-                                const newFiles = prev.includes(file)
-                                  ? prev.filter(f => f !== file)
-                                  : [...prev, file];
-                                
-                                // Update data sources based on file selection
-                                if (newFiles.length > 0 && !draftDataSources.includes('Files')) {
-                                  setDraftDataSources(prevSources => [...prevSources, 'Files']);
-                                } else if (newFiles.length === 0) {
-                                  setDraftDataSources(prevSources => prevSources.filter(s => s !== 'Files'));
-                                }
-                                
-                                return newFiles;
-                              });
-                            }}
-                            className="text-white"
-                          >
-                            <Checkbox
-                              checked={modalSelectedFiles.includes(file)}
-                              className="mr-2"
-                            />
-                            <span className="flex-1">{file}</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFilePreviewModal(file);
-                              }}
-                              className="ml-2 p-1 hover:bg-muted/50 rounded transition-colors"
-                              title="Open in modal"
-                            >
-                              <ExternalLink className="w-3 h-3 text-white" />
-                            </button>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </div>
+              {sitrepModalOpen === 'child-incident-2' && (
+                <>
+                  {sitrepModalTab === 1 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Contact Information</label>
+                      <p className="caption text-white">Operations Manager: Jennifer Chen, ExxonMobil | Contact: +1-504-555-0198 | Location: Deepwater Export Line 7, Mile Marker 47</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 2 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Executive Summary</label>
+                      <p className="caption text-white">Routine integrity survey of Deepwater Export Line 7 detected minor coating degradation at multiple locations between MM 45-52. ROV inspection commenced 06:00 to assess extent and severity. Line remains operational at reduced pressure (800 PSI, normal 1,200 PSI). No leaks detected. Cathodic protection readings within acceptable parameters. Survey completion expected by 18:00 today.</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 3 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Current Situation</label>
+                      <p className="caption text-white">ROV unit conducting detailed video survey and ultrasonic wall thickness measurements. Five locations showing coating loss 15-25% of protective layer. Pipeline structural integrity maintained with wall thickness readings 92-96% of specification. No active corrosion detected. Flow rate reduced to 45,000 barrels/day (normal 65,000) as precautionary measure. Downstream facilities adjusted for reduced throughput.</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 4 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Actions Taken</label>
+                      <p className="caption text-white">- ROV mobilized and survey initiated at 06:00<br/>- Pipeline pressure reduced to 800 PSI at 06:30<br/>- Production platforms notified of flow restrictions<br/>- Cathodic protection survey completed, systems normal<br/>- Engineering team reviewing preliminary ROV data<br/>- Repair contractor on standby pending assessment<br/>- USCG and BSEE notifications filed per regulations</p>
+                    </div>
+                  )}
+                  {sitrepModalTab === 5 && (
+                    <div>
+                      <label className="caption text-white/70 text-sm block mb-2">Forecast / Next 12 Hours</label>
+                      <p className="caption text-white">ROV survey completion expected 18:00 with full engineering analysis by 22:00. Based on preliminary findings, anticipate coating repair requirement within 30-day window per regulations. If repairs can be scheduled during next maintenance period (Feb 2026), no production impact. Emergency repair not indicated - pipeline safe for continued operation at reduced pressure. Will resume normal operating pressure upon engineering approval of survey results.</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            {/* Text Styler/Editor Placeholder */}
-            <div className="text-white/50 text-sm">
-              [placeholder for text styler/editor component eg tinyMCE]
-            </div>
-
-            <div className="relative">
-              <Textarea
-                value={modalDraftContents[modalDraftTab]}
-                onChange={(e) => setModalDraftContents({
-                  ...modalDraftContents,
-                  [modalDraftTab]: e.target.value
-                })}
-                placeholder={`Enter content for ${
-                  modalDraftTab === 1 ? 'Contact Info' :
-                  modalDraftTab === 2 ? 'Executive Summary' :
-                  `Tab ${modalDraftTab}`
-                }...`}
-                className="bg-input-background border-border text-white resize-none"
-                style={{ minHeight: '20vh' }}
-              />
-              <div className="absolute bottom-2 right-2 text-white/50 text-xs">
-                Word Limit {modalDraftTab === 2 ? '250' : '100'}
-              </div>
-            </div>
-            
-            {/* Attach Files Button */}
-            <div className="flex gap-3 items-center">
-              <button
-                onClick={() => {
-                  // Attach files logic (placeholder for now)
-                  console.log('Attach files clicked');
-                }}
-                className="text-white hover:text-white border border-white rounded-[4px] px-3 py-1.5 transition-colors flex items-center gap-1"
-              >
-                <span className="text-lg leading-none">+</span>
-                <span className="text-sm">Attach Files to Section: {
-                  modalDraftTab === 1 ? 'Contact Info' :
-                  modalDraftTab === 2 ? 'Executive Summary' :
-                  `Tab ${modalDraftTab}`
-                }</span>
-              </button>
-              
-              {/* Attached File Placeholder */}
-              <button
-                onClick={() => {
-                  // Placeholder - does nothing for now
-                  console.log('Document Alpha.pdf clicked');
-                }}
-                className="text-white bg-[#14171a] border border-[#6e757c] rounded-[4px] px-3 py-1.5 hover:bg-[#1a1d21] transition-colors"
-              >
-                <span className="text-sm">Document Alpha.pdf</span>
-              </button>
-            </div>
-            
+      {/* Draft SITREP Modal */}
+      <Dialog open={isDraftModalOpen} onOpenChange={setIsDraftModalOpen}>
+        <DialogContent className="bg-[#222529] border-[#6e757c] text-white overflow-hidden flex flex-col" style={{ maxWidth: '71vw', maxHeight: '71vh', width: '71vw' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">Confirm SITREP Submission</DialogTitle>
+            <p className="text-white/70 text-sm mt-2">
+              Do you want to submit your SITREP draft for Sector New York to the Section Chief?
+            </p>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
             {/* Preview Approval Workflow */}
             <div className="space-y-3">
               <Label className="text-white text-sm">Preview Approval Workflow</Label>
@@ -2017,7 +2735,7 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
                 }}
                 className="bg-primary hover:bg-primary/90 px-6 py-0.5 h-auto text-sm"
               >
-                Save Draft
+                Confirm Submission
               </Button>
               <Button
                 onClick={() => {
@@ -2043,6 +2761,18 @@ POC: DHS Operations Center +1-202-282-8000 | worldcup.ops@hq.dhs.gov`}
           </DialogHeader>
           <div className="py-8 text-center">
             <p className="text-white/70">Placeholder for PDF preview</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview Modal for Document Alpha */}
+      <Dialog open={pdfPreviewModalOpen} onOpenChange={setPdfPreviewModalOpen}>
+        <DialogContent className="bg-[#222529] border-[#6e757c] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Document Alpha.pdf</DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center">
+            <p className="text-white/70">placeholder for PDF preview of document</p>
           </div>
         </DialogContent>
       </Dialog>

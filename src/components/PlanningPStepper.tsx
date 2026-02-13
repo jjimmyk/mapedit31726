@@ -1,4 +1,4 @@
-import { Check, Clock, ChevronDown, ArrowLeft, Calendar, BarChart3, FileText, Settings } from 'lucide-react';
+import { Check, Clock, ChevronDown, ArrowLeft, Calendar, BarChart3, FileText, Settings, Bell, AlertTriangle, MapPin, Box, Layers } from 'lucide-react';
 import { DisasterPhase } from '../types/disaster';
 import { Button } from './ui/button';
 
@@ -41,6 +41,7 @@ export function PlanningPStepper({ phases, currentPhaseId, onPhaseSelect, operat
                   ? 'text-accent'
                   : 'text-foreground hover:text-accent'
               }`}
+              title={phase.shortName}
             >
               <div className="flex flex-col items-center gap-1">
                 <div className="flex items-center gap-2">
@@ -67,9 +68,12 @@ export function PlanningPStepper({ phases, currentPhaseId, onPhaseSelect, operat
                       {notificationCount}
                     </div>
                   )}
-                  <span className="caption">
-                    {phase.shortName}
-                  </span>
+                  {phase.id === 'alerts' && <Bell className="w-4 h-4" />}
+                  {phase.id === 'overview' && <FileText className="w-4 h-4" />}
+                  {phase.id === 'objectives-actions' && <AlertTriangle className="w-4 h-4" />}
+                  {phase.id === 'incident-roster' && <MapPin className="w-4 h-4" />}
+                  {phase.id === 'resources' && <Box className="w-4 h-4" />}
+                  {phase.id === 'layers' && <Layers className="w-4 h-4" />}
                 </div>
                 
                 {/* Descriptive text for Operational Period 0 */}
