@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { ChevronDown, ChevronRight, Edit2, Trash2, RefreshCw, Check, Download, Plus, ExternalLink, Map } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit2, Trash2, RefreshCw, Check, Download, Plus, ExternalLink, Map, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
@@ -40,6 +40,8 @@ interface DataSourceItem {
 }
 
 export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPhaseProps) {
+  const ALL_AORS_ID = 'all-aors';
+  const ALL_INCIDENTS_ID = 'all-incidents';
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [expandedChildIncidents, setExpandedChildIncidents] = useState<Set<string>>(new Set());
@@ -47,7 +49,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<'region' | 'incident'>('region');
   const [selectedRegion, setSelectedRegion] = useState<string>('sector-new-york');
-  const [selectedIncident, setSelectedIncident] = useState<string>('oil-spill-alpha');
+  const [selectedIncident, setSelectedIncident] = useState<string>('platform-shutdown-alpha');
   const [regionPopoverOpen, setRegionPopoverOpen] = useState(false);
   const [incidentPopoverOpen, setIncidentPopoverOpen] = useState(false);
   const [sitrepContent, setSitrepContent] = useState<string>(data.sitrep || '');
@@ -55,34 +57,71 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   const [sitrepDraft, setSitrepDraft] = useState<string>('');
   const [sitrepLastUpdated, setSitrepLastUpdated] = useState<string>(data.sitrepLastUpdated || '');
   const [sitrepLastUpdatedBy, setSitrepLastUpdatedBy] = useState<string>(data.sitrepLastUpdatedBy || 'John Smith');
-  const [filterEditMode, setFilterEditMode] = useState(false);
-  const [filterModeDraft, setFilterModeDraft] = useState<'region' | 'incident'>('region');
-  const [selectedRegionDraft, setSelectedRegionDraft] = useState<string>('sector-new-york');
-  const [selectedIncidentDraft, setSelectedIncidentDraft] = useState<string>('oil-spill-alpha');
-  const [sitrepViewMode, setSitrepViewMode] = useState<'latest' | 'historical' | 'drafts'>('latest');
+  const [sitrepViewMode, setSitrepViewMode] = useState<'latest' | 'historical' | 'drafts' | 'review'>('latest');
+  const [reviewQueueTab, setReviewQueueTab] = useState<number>(1);
+  const [reviewEditMode, setReviewEditMode] = useState(false);
+  const [reviewEditContents, setReviewEditContents] = useState<Record<number, string>>({
+    1: 'Reporting Unit: Sector Operations Center. Primary POC CAPT Rodriguez. Incident command structure activated.',
+    2: 'Executive Summary: Hurricane Delta forming 400nm SE of Louisiana coast. Current track forecast landfall in 72-96 hours. Port Condition YANKEE set as precautionary measure.',
+    9: 'Risk to Mission: Moderate. Monitoring storm development closely. Prepared to escalate response posture as needed.',
+    10: 'Outstanding RFI/RFR: Weather forecasting updates requested every 6 hours. Resource availability confirmation from neighboring sectors.',
+    11: 'Previous 14-day Critical Incident Reporting: Initial hurricane formation detected. Preparedness protocols initiated.',
+    12: 'General Comments: Joint coordination calls established with State EOC and FEMA Region 6. All units briefed on storm track.',
+    13: 'Imagery: Initial storm formation satellite imagery. Projected track cone maps distributed.'
+  });
   
   // Historical SITREPs state
   const [historicalSitreps] = useState([
     {
       id: 'hist-1',
-      content: 'Operational Period 3 Summary: Hurricane Delta downgraded to Category 2, moving NNE at 18 knots. All vessels accounted for in designated safe harbors. Port Condition ZULU remains in effect for Gulf Coast ports.\n\nDamage Assessment: Minor pier damage at Station Galveston. All units operational. Power restored to 85% of affected areas.\n\nCurrent Operations: SAR helicopter crews on standby. Marine safety zones enforced within 50nm of eye wall.',
+      sections: {
+        1: 'Reporting Unit: Sector Operations Center. Primary POC CAPT Anderson. Full operational staffing maintained throughout hurricane response.',
+        2: 'Executive Summary: Hurricane Delta downgraded to Category 2, moving NNE at 18 knots. All vessels accounted for in designated safe harbors. Port Condition ZULU remains in effect for Gulf Coast ports.',
+        9: 'Risk to Mission: Low. Storm track moving away from operational area. Weather conditions improving steadily.',
+        10: 'Outstanding RFI/RFR: Awaiting damage assessment reports from outlying stations. Expected completion within 24 hours.',
+        11: 'Previous 14-day Critical Incident Reporting: Hurricane Delta response operations ongoing. Minor infrastructure damage documented.',
+        12: 'General Comments: Excellent coordination across all units. Transition to recovery operations commencing at 1200L tomorrow.',
+        13: 'Imagery: Aerial reconnaissance imagery of Station Galveston pier damage attached. Documentation of safe harbor positions included.'
+      },
       approvedDate: '12/18/2025 09:15',
       approvedBy: 'CAPT Anderson',
-      operationalPeriod: 'OP-3'
+      operationalPeriod: 'OP-3',
+      authoredDate: '12/18/2025 08:30',
+      authoredBy: 'LCDR Sarah Mitchell'
     },
     {
       id: 'hist-2',
-      content: 'Operational Period 2 Summary: Hurricane Delta intensified to Category 3, sustained winds 115 knots. Port Condition ZULU set for all Gulf Coast ports. All commercial traffic suspended.\n\nEvacuations: 450 personnel evacuated from offshore platforms. 23 vessels assisted to safe harbor. Zero casualties reported.\n\nPreparedness: All stations secured. Emergency generators online. Fuel reserves at 100%.',
+      sections: {
+        1: 'Reporting Unit: Sector Operations Center. Primary POC CAPT Anderson. Emergency operations center fully activated.',
+        2: 'Executive Summary: Hurricane Delta intensified to Category 3, sustained winds 115 knots. Port Condition ZULU set for all Gulf Coast ports. All commercial traffic suspended.',
+        9: 'Risk to Mission: High. Direct impact expected within 48 hours. All response assets staged and ready.',
+        10: 'Outstanding RFI/RFR: Requesting additional SAR helicopter support from District. Fuel resupply coordination pending.',
+        11: 'Previous 14-day Critical Incident Reporting: Hurricane Delta track updates. Evacuation operations in progress.',
+        12: 'General Comments: All units operating under HURCON 2 protocols. Coordination with State EOC and FEMA ongoing.',
+        13: 'Imagery: Satellite tracking imagery of Hurricane Delta. Vessel positioning maps included.'
+      },
       approvedDate: '12/17/2025 16:30',
       approvedBy: 'CAPT Anderson',
-      operationalPeriod: 'OP-2'
+      operationalPeriod: 'OP-2',
+      authoredDate: '12/17/2025 15:45',
+      authoredBy: 'LCDR Sarah Mitchell'
     },
     {
       id: 'hist-3',
-      content: 'Operational Period 1 Summary: Hurricane Delta forming 400nm SE of Louisiana coast. Current track forecast landfall in 72-96 hours. Port Condition YANKEE set as precautionary measure.\n\nInitial Actions: All cutters returning to homeport. Aircraft secured in hangars. Personnel recall initiated. Supply chain activation for emergency provisions.\n\nCoordination: Joint calls established with State EOC and FEMA Region 6.',
+      sections: {
+        1: 'Reporting Unit: Sector Operations Center. Primary POC CAPT Rodriguez. Incident command structure activated.',
+        2: 'Executive Summary: Hurricane Delta forming 400nm SE of Louisiana coast. Current track forecast landfall in 72-96 hours. Port Condition YANKEE set as precautionary measure.',
+        9: 'Risk to Mission: Moderate. Monitoring storm development closely. Prepared to escalate response posture as needed.',
+        10: 'Outstanding RFI/RFR: Weather forecasting updates requested every 6 hours. Resource availability confirmation from neighboring sectors.',
+        11: 'Previous 14-day Critical Incident Reporting: Initial hurricane formation detected. Preparedness protocols initiated.',
+        12: 'General Comments: Joint coordination calls established with State EOC and FEMA Region 6. All units briefed on storm track.',
+        13: 'Imagery: Initial storm formation satellite imagery. Projected track cone maps distributed.'
+      },
       approvedDate: '12/16/2025 14:00',
       approvedBy: 'CAPT Rodriguez',
-      operationalPeriod: 'OP-1'
+      operationalPeriod: 'OP-1',
+      authoredDate: '12/16/2025 13:15',
+      authoredBy: 'LT Jackson Chen'
     }
   ]);
   
@@ -113,6 +152,8 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [filePreviewModal, setFilePreviewModal] = useState<string | null>(null);
   const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
+  const [historicalSitrepTabs, setHistoricalSitrepTabs] = useState<Record<string, number>>({});
+  const [selectedDraftObjectName, setSelectedDraftObjectName] = useState<string | null>(null);
   
   // Modal-specific data sources state
   const [modalDataSourcesOpen, setModalDataSourcesOpen] = useState(false);
@@ -245,8 +286,14 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     const baseTime = new Date();
     const randomMinutes = () => Math.floor(Math.random() * 15);
     
-    const regionCoverage = regions.find(r => r.id === region)?.name || 'Unknown Region';
-    const incidentName = incidents.find(i => i.id === incident)?.name || 'Unknown Incident';
+    const regionCoverage =
+      region === ALL_AORS_ID
+        ? 'All AORs'
+        : regions.find(r => r.id === region)?.name || 'Unknown Region';
+    const incidentName =
+      incident === ALL_INCIDENTS_ID
+        ? 'All Incidents'
+        : incidents.find(i => i.id === incident)?.name || 'Unknown Incident';
     
     const items: DataSourceItem[] = [];
     
@@ -366,7 +413,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   };
 
   const [dataSources, setDataSources] = useState<DataSourceItem[]>(
-    data.dataSources || generateDataForSelection('gulf-coast', 'oil-spill-alpha', 'region')
+    data.dataSources || generateDataForSelection('gulf-coast', 'platform-shutdown-alpha', 'region')
   );
 
   // Function to manually update data
@@ -418,30 +465,6 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
   const cancelEditSitrep = () => {
     setSitrepDraft('');
     setSitrepEditMode(false);
-  };
-
-  const startEditFilter = () => {
-    setFilterModeDraft(filterMode);
-    setSelectedRegionDraft(selectedRegion);
-    setSelectedIncidentDraft(selectedIncident);
-    setFilterEditMode(true);
-  };
-
-  const saveFilterChanges = () => {
-    setFilterMode(filterModeDraft);
-    setSelectedRegion(selectedRegionDraft);
-    setSelectedIncident(selectedIncidentDraft);
-    const newData = generateDataForSelection(selectedRegionDraft, selectedIncidentDraft, filterModeDraft);
-    setDataSources(newData);
-    persist(newData);
-    setFilterEditMode(false);
-  };
-
-  const cancelEditFilter = () => {
-    setFilterModeDraft(filterMode);
-    setSelectedRegionDraft(selectedRegion);
-    setSelectedIncidentDraft(selectedIncident);
-    setFilterEditMode(false);
   };
 
   const toggleSource = (id: string) => {
@@ -531,9 +554,15 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     }
   };
 
-  const currentRegionName =
-    regions.find(r => r.id === (filterEditMode ? selectedRegionDraft : selectedRegion))?.name ||
-    'Unknown Region';
+  const selectedRegionName =
+    selectedRegion === ALL_AORS_ID
+      ? 'All AORs'
+      : regions.find(r => r.id === selectedRegion)?.name || 'Unknown Region';
+  const selectedIncidentName =
+    selectedIncident === ALL_INCIDENTS_ID
+      ? 'All Incidents'
+      : incidents.find(i => i.id === selectedIncident)?.name || 'Unknown Incident';
+  const currentRegionName = selectedRegionName;
   const sitrepSections = [
     { id: 1, label: 'Reporting Unit' },
     { id: 2, label: 'Executive Summary' },
@@ -545,8 +574,69 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
     { id: 13, label: 'Imagery' }
   ];
 
+  const getLatestSitrepContentByTab = (tabId: number): string => {
+    const readinessApprovedContent: Record<string, string> = {
+      maneuver: 'Patrol posture maintained at primary chokepoints. QRF remains on 15-minute standby. Partner unit coordination ongoing with no deviations reported.',
+      intel: 'No new credible threats reported in the last 12 hours. Open-source monitoring stable. Liaison updates pending next intel brief.',
+      logistics: 'Supply status green. Fuel and maintenance logs updated. Civil affairs coordination continuing with local agencies and port authority.',
+      command: 'Command post fully staffed. Communications checks complete across all channels. Incident action plan updates distributed to section leads.',
+      force: 'Force protection posture remains elevated. Access control measures in place. No security violations or perimeter breaches reported.',
+      other: 'No additional readiness concerns reported. Monitoring continues with standard reporting cadence.'
+    };
+
+    const latestByTab: Record<number, string> = {
+      1: 'Reporting Unit: Sector Operations Center. Primary POC LCDR Sarah Mitchell. Staffing at 92% with full watch rotation coverage.',
+      2: 'Executive Summary: Operational tempo remains steady. Maritime security zones active with high compliance. No significant incidents reported in the last 12 hours.\nCutter Vessel 001 is in preparing to conduct a patrol of Zone Alpha.',
+      8: [
+        'Maneuver & Force:',
+        readinessApprovedContent.maneuver,
+        '',
+        'Intelligence & Info:',
+        readinessApprovedContent.intel,
+        '',
+        'Logistics / Civil Affairs:',
+        readinessApprovedContent.logistics,
+        '',
+        'Command and Control:',
+        readinessApprovedContent.command,
+        '',
+        'Force Protection:',
+        readinessApprovedContent.force,
+        '',
+        'Other:',
+        readinessApprovedContent.other
+      ].join('\n'),
+      9: 'Risk to Mission: Low. No credible threats or disruptions anticipated. Monitoring continues with elevated readiness posture.',
+      10: 'Outstanding RFI/RFR: None at this time. All pending requests resolved in current operational period.',
+      11: 'Previous 14-day Critical Incident Reporting: No critical incidents requiring follow-on reporting. Prior advisories have been closed.',
+      12: 'General Comments: Interagency coordination remains strong. Next brief scheduled for 1800L.',
+      13: 'Imagery: No new imagery submitted. Last update includes routine aerial reconnaissance set dated 02/03/2026.'
+    };
+
+    return latestByTab[tabId] || '';
+  };
+
+  const startNewDraftFromLatest = () => {
+    const prefilledDraftContent: Record<number, string> = {
+      1: getLatestSitrepContentByTab(1),
+      2: getLatestSitrepContentByTab(2),
+      8: getLatestSitrepContentByTab(8),
+      9: getLatestSitrepContentByTab(9),
+      10: getLatestSitrepContentByTab(10),
+      11: getLatestSitrepContentByTab(11),
+      12: getLatestSitrepContentByTab(12),
+      13: getLatestSitrepContentByTab(13)
+    };
+
+    setDraftTabContents(prefilledDraftContent);
+    setActiveDraftTab(1);
+    setSelectedTemplate('');
+    setSitrepViewMode('drafts');
+    setIsAddingDraft(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-[#222529] rounded-lg border border-[#6e757c] relative">
         <div className="flex items-center justify-between px-[13px] py-3 w-full border-b-2 border-border rounded-t-lg rounded-b-none">
@@ -573,91 +663,36 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         </div>
       </div>
 
-      {/* Filter Mode Toggle and Dropdown */}
-      <div className="space-y-3 px-4 py-3 bg-[#222529] rounded-lg border border-[#6e757c]">
-        {/* Toggle Control with Edit Icon */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="caption text-white whitespace-nowrap">Filter by:</span>
-            <div className="flex items-center bg-[#14171a] rounded-[4px] border border-[#6e757c] overflow-hidden">
-              <button
-                onClick={() => filterEditMode && setFilterModeDraft('region')}
-                disabled={!filterEditMode}
-                className={`caption px-3 py-1 transition-colors ${
-                  (filterEditMode ? filterModeDraft : filterMode) === 'region'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-white hover:bg-[#222529]'
-                } ${!filterEditMode ? 'cursor-default' : ''}`}
-                style={{ 
-                  fontFamily: "'Open Sans', sans-serif",
-                  fontSize: '12px',
-                  fontWeight: 400,
-                  lineHeight: '18px'
-                }}
-              >
-                AOR
-              </button>
-              <button
-                onClick={() => filterEditMode && setFilterModeDraft('incident')}
-                disabled={!filterEditMode}
-                className={`caption px-3 py-1 transition-colors ${
-                  (filterEditMode ? filterModeDraft : filterMode) === 'incident'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-white hover:bg-[#222529]'
-                } ${!filterEditMode ? 'cursor-default' : ''}`}
-                style={{ 
-                  fontFamily: "'Open Sans', sans-serif",
-                  fontSize: '12px',
-                  fontWeight: 400,
-                  lineHeight: '18px'
-                }}
-              >
-                Incident
-              </button>
-            </div>
-          </div>
-          {!filterEditMode && (
-            <button
-              onClick={startEditFilter}
-              className="p-1 hover:bg-muted/30 rounded transition-colors"
-              title="Edit Filter"
-            >
-              <Edit2 className="w-4 h-4 text-white" />
-            </button>
-          )}
-        </div>
-
-        {/* Conditional Dropdown */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="caption text-white whitespace-nowrap">
-              {(filterEditMode ? filterModeDraft : filterMode) === 'region' ? 'AOR:' : 'Incident:'}
-            </span>
-            {(filterEditMode ? filterModeDraft : filterMode) === 'region' ? (
-              <Popover open={filterEditMode && regionPopoverOpen} onOpenChange={(open) => filterEditMode && setRegionPopoverOpen(open)}>
+      {/* Two Separate Filter Components */}
+      <div className="flex gap-3">
+        {/* AOR */}
+        <div className="flex-1 px-4 py-3 bg-[#222529] rounded-lg border border-[#6e757c]">
+          <div className="space-y-2">
+            <span className="caption text-white whitespace-nowrap block">AOR:</span>
+            <div className="flex items-center gap-2">
+              <Popover open={regionPopoverOpen} onOpenChange={setRegionPopoverOpen}>
                 <PopoverTrigger asChild>
                   <button
-                    onClick={(e) => !filterEditMode && e.preventDefault()}
-                    className={`w-1/2 h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center justify-between ${
-                      filterEditMode ? 'cursor-pointer' : 'cursor-default'
+                    className={`flex-1 h-[24px] bg-transparent border rounded-[4px] px-2 caption text-white focus:outline-none flex items-center justify-between cursor-pointer ${
+                      regionPopoverOpen ? 'border-accent' : 'border-[#6e757c]'
                     }`}
-                    style={{ 
+                    style={{
                       fontFamily: "'Open Sans', sans-serif",
                       fontSize: '12px',
                       fontWeight: 400,
                       lineHeight: '18px'
                     }}
                   >
-                    {regions.find(r => r.id === (filterEditMode ? selectedRegionDraft : selectedRegion))?.name || 'Select region...'}
+                    {selectedRegionName}
                     <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[300px] p-0 bg-[#222529] border-[#6e757c]" align="start">
                   <Command className="bg-[#222529]">
-                    <CommandInput 
-                      placeholder="Search region..." 
+                    <CommandInput
+                      placeholder="Search AOR..."
                       className="h-9 caption text-white"
-                      style={{ 
+                      style={{
                         fontFamily: "'Open Sans', sans-serif",
                         fontSize: '12px',
                         fontWeight: 400,
@@ -665,29 +700,38 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                       }}
                     />
                     <CommandList>
-                      <CommandEmpty className="caption text-white/70 p-2">No region found.</CommandEmpty>
+                      <CommandEmpty className="caption text-white/70 p-2">No AOR found.</CommandEmpty>
                       <CommandGroup>
+                        <CommandItem
+                          value="All AORs"
+                          onSelect={() => {
+                            setSelectedRegion(ALL_AORS_ID);
+                            setFilterMode('region');
+                            const newData = generateDataForSelection(ALL_AORS_ID, selectedIncident, 'region');
+                            setDataSources(newData);
+                            persist(newData);
+                            setRegionPopoverOpen(false);
+                          }}
+                          className="caption text-white cursor-pointer hover:bg-[#14171a] data-[selected=true]:bg-[#14171a]"
+                        >
+                          <Check className={`mr-2 h-3 w-3 ${selectedRegion === ALL_AORS_ID ? 'opacity-100' : 'opacity-0'}`} />
+                          All AORs
+                        </CommandItem>
                         {regions.map((region) => (
                           <CommandItem
                             key={region.id}
                             value={region.name}
                             onSelect={() => {
-                              setSelectedRegionDraft(region.id);
+                              setSelectedRegion(region.id);
+                              setFilterMode('region');
+                              const newData = generateDataForSelection(region.id, selectedIncident, 'region');
+                              setDataSources(newData);
+                              persist(newData);
                               setRegionPopoverOpen(false);
                             }}
                             className="caption text-white cursor-pointer hover:bg-[#14171a] data-[selected=true]:bg-[#14171a]"
-                            style={{ 
-                              fontFamily: "'Open Sans', sans-serif",
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '18px'
-                            }}
                           >
-                            <Check
-                              className={`mr-2 h-3 w-3 ${
-                                (filterEditMode ? selectedRegionDraft : selectedRegion) === region.id ? 'opacity-100' : 'opacity-0'
-                              }`}
-                            />
+                            <Check className={`mr-2 h-3 w-3 ${selectedRegion === region.id ? 'opacity-100' : 'opacity-0'}`} />
                             {region.name}
                           </CommandItem>
                         ))}
@@ -696,31 +740,62 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   </Command>
                 </PopoverContent>
               </Popover>
-            ) : (
-              <Popover open={filterEditMode && incidentPopoverOpen} onOpenChange={(open) => filterEditMode && setIncidentPopoverOpen(open)}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('AOR map clicked');
+                }}
+                className="p-1 hover:bg-muted/30 rounded transition-colors"
+                title="Show on map"
+              >
+                <Map className="w-3 h-3 text-white" />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  console.log('Exporting approved reports for AOR:', selectedRegionName);
+                }}
+                className="bg-[#01669f] rounded-[4px] px-3 py-2 hover:bg-[#01669f]/90 transition-colors flex items-start justify-start gap-2 flex-1 text-left"
+              >
+                <Download className="w-3 h-3 text-white shrink-0 mt-0.5" />
+                <span className="caption text-white whitespace-normal leading-4">
+                  Export Approved Reports
+                </span>
+              </button>
+              <div className="w-5" aria-hidden />
+            </div>
+          </div>
+        </div>
+
+        {/* Select Incident */}
+        <div className="flex-1 px-4 py-3 bg-[#222529] rounded-lg border border-[#6e757c]">
+          <div className="space-y-2">
+            <span className="caption text-white whitespace-nowrap block">Select Incident:</span>
+            <div className="flex items-center gap-2">
+              <Popover open={incidentPopoverOpen} onOpenChange={setIncidentPopoverOpen}>
                 <PopoverTrigger asChild>
                   <button
-                    onClick={(e) => !filterEditMode && e.preventDefault()}
-                    className={`w-1/2 h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent flex items-center justify-between ${
-                      filterEditMode ? 'cursor-pointer' : 'cursor-default'
+                    className={`flex-1 h-[24px] bg-transparent border rounded-[4px] px-2 caption text-white focus:outline-none flex items-center justify-between cursor-pointer ${
+                      incidentPopoverOpen ? 'border-accent' : 'border-[#6e757c]'
                     }`}
-                    style={{ 
+                    style={{
                       fontFamily: "'Open Sans', sans-serif",
                       fontSize: '12px',
                       fontWeight: 400,
                       lineHeight: '18px'
                     }}
                   >
-                    {incidents.find(i => i.id === (filterEditMode ? selectedIncidentDraft : selectedIncident))?.name || 'Select incident...'}
+                    {selectedIncidentName}
                     <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[400px] p-0 bg-[#222529] border-[#6e757c]" align="start">
                   <Command className="bg-[#222529]">
-                    <CommandInput 
-                      placeholder="Search incident..." 
+                    <CommandInput
+                      placeholder="Search incident..."
                       className="h-9 caption text-white"
-                      style={{ 
+                      style={{
                         fontFamily: "'Open Sans', sans-serif",
                         fontSize: '12px',
                         fontWeight: 400,
@@ -730,27 +805,36 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                     <CommandList>
                       <CommandEmpty className="caption text-white/70 p-2">No incident found.</CommandEmpty>
                       <CommandGroup>
+                        <CommandItem
+                          value="All Incidents"
+                          onSelect={() => {
+                            setSelectedIncident(ALL_INCIDENTS_ID);
+                            setFilterMode('incident');
+                            const newData = generateDataForSelection(selectedRegion, ALL_INCIDENTS_ID, 'incident');
+                            setDataSources(newData);
+                            persist(newData);
+                            setIncidentPopoverOpen(false);
+                          }}
+                          className="caption text-white cursor-pointer hover:bg-[#14171a] data-[selected=true]:bg-[#14171a]"
+                        >
+                          <Check className={`mr-2 h-3 w-3 ${selectedIncident === ALL_INCIDENTS_ID ? 'opacity-100' : 'opacity-0'}`} />
+                          All Incidents
+                        </CommandItem>
                         {incidents.map((incident) => (
                           <CommandItem
                             key={incident.id}
                             value={incident.name}
                             onSelect={() => {
-                              setSelectedIncidentDraft(incident.id);
+                              setSelectedIncident(incident.id);
+                              setFilterMode('incident');
+                              const newData = generateDataForSelection(selectedRegion, incident.id, 'incident');
+                              setDataSources(newData);
+                              persist(newData);
                               setIncidentPopoverOpen(false);
                             }}
                             className="caption text-white cursor-pointer hover:bg-[#14171a] data-[selected=true]:bg-[#14171a]"
-                            style={{ 
-                              fontFamily: "'Open Sans', sans-serif",
-                              fontSize: '12px',
-                              fontWeight: 400,
-                              lineHeight: '18px'
-                            }}
                           >
-                            <Check
-                              className={`mr-2 h-3 w-3 ${
-                                (filterEditMode ? selectedIncidentDraft : selectedIncident) === incident.id ? 'opacity-100' : 'opacity-0'
-                              }`}
-                            />
+                            <Check className={`mr-2 h-3 w-3 ${selectedIncident === incident.id ? 'opacity-100' : 'opacity-0'}`} />
                             {incident.name}
                           </CommandItem>
                         ))}
@@ -759,61 +843,34 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   </Command>
                 </PopoverContent>
               </Popover>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('Filter map clicked');
-              }}
-              className="p-1 hover:bg-muted/30 rounded transition-colors"
-              title="Show on map"
-            >
-              <Map className="w-3 h-3 text-white" />
-            </button>
-          </div>
-
-          {/* Update and Cancel Buttons - Only visible when in edit mode */}
-          {filterEditMode && (
-            <div className="flex gap-3">
-              <Button
-                onClick={saveFilterChanges}
-                className="bg-primary hover:bg-primary/90 px-4 h-auto text-xs"
-                style={{ paddingTop: '2px', paddingBottom: '2px' }}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Incident map clicked');
+                }}
+                className="p-1 hover:bg-muted/30 rounded transition-colors"
+                title="Show on map"
               >
-                Update
-              </Button>
-              <Button
-                onClick={cancelEditFilter}
-                variant="outline"
-                className="border-border px-4 h-auto text-xs"
-                style={{ paddingTop: '2px', paddingBottom: '2px' }}
-              >
-                Cancel
-              </Button>
+                <Map className="w-3 h-3 text-white" />
+              </button>
             </div>
-          )}
-
-          {/* Export All Reports Button - Only visible when not in edit mode */}
-          {!filterEditMode && (
-            <button
-              onClick={() => {
-                console.log('Exporting all reports for:', filterMode === 'region' 
-                  ? regions.find(r => r.id === selectedRegion)?.name 
-                  : incidents.find(i => i.id === selectedIncident)?.name);
-              }}
-              className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-2"
-            >
-              <Download className="w-3 h-3 text-white" />
-              <span className="caption text-white">
-                Export Approved Reports for {filterMode === 'region' 
-                  ? regions.find(r => r.id === selectedRegion)?.name 
-                  : incidents.find(i => i.id === selectedIncident)?.name}
-              </span>
-            </button>
-          )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  console.log('Exporting approved reports for incident:', selectedIncidentName);
+                }}
+                className="bg-[#01669f] rounded-[4px] px-3 py-2 hover:bg-[#01669f]/90 transition-colors flex items-start justify-start gap-2 flex-1 text-left"
+              >
+                <Download className="w-3 h-3 text-white shrink-0 mt-0.5" />
+                <span className="caption text-white whitespace-normal leading-4">
+                  Export Approved Reports
+                </span>
+              </button>
+              <div className="w-5" aria-hidden />
+            </div>
+          </div>
         </div>
       </div>
-
       {/* SITREP Section */}
       <div className="mb-6">
         <div className="border border-border rounded-lg overflow-hidden bg-card/30">
@@ -869,13 +926,26 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                 >
                   My Drafts
                 </button>
+                <button
+                  onClick={() => setSitrepViewMode('review')}
+                  className={`caption px-3 py-1 transition-colors ${
+                    sitrepViewMode === 'review'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-white hover:bg-[#222529]'
+                  }`}
+                  style={{ 
+                    fontFamily: "'Open Sans', sans-serif",
+                    fontSize: '12px',
+                    fontWeight: 400,
+                    lineHeight: '18px'
+                  }}
+                >
+                  Review Queue
+                </button>
               </div>
               {sitrepViewMode === 'latest' && (
                 <button
-                  onClick={() => {
-                    setSitrepViewMode('drafts');
-                    setIsAddingDraft(true);
-                  }}
+                  onClick={startNewDraftFromLatest}
                   className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1"
                 >
                   <span className="text-white text-xs">+</span>
@@ -891,9 +961,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Label className="text-white text-sm font-semibold">
-                        SITREP for {filterMode === 'region' 
-                          ? regions.find(r => r.id === selectedRegion)?.name 
-                          : incidents.find(i => i.id === selectedIncident)?.name}
+                        SITREP for {filterMode === 'region' ? selectedRegionName : selectedIncidentName}
                       </Label>
                       <button
                         onClick={(e) => {
@@ -1064,7 +1132,23 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   </div>
                   <p className="text-white whitespace-pre-wrap" style={{ fontSize: `${sitrepLatestFontSize}px` }}>
                     {activeSitrepTab === 1 && 'Reporting Unit: Sector Operations Center. Primary POC LCDR Sarah Mitchell. Staffing at 92% with full watch rotation coverage.'}
-                    {activeSitrepTab === 2 && 'Executive Summary: Operational tempo remains steady. Maritime security zones active with high compliance. No significant incidents reported in the last 12 hours.'}
+                    {activeSitrepTab === 2 && (
+                      <>
+                        {'Executive Summary: Operational tempo remains steady. Maritime security zones active with high compliance. No significant incidents reported in the last 12 hours.\n'}
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedDraftObjectName('Cutter Vessel 001');
+                          }}
+                          style={{ textDecoration: 'underline', color: 'white', cursor: 'pointer' }}
+                        >
+                          Cutter Vessel 001
+                        </a>
+                        {' is in preparing to conduct a patrol of Zone Alpha.'}
+                      </>
+                    )}
                     {activeSitrepTab === 9 && 'Risk to Mission: Low. No credible threats or disruptions anticipated. Monitoring continues with elevated readiness posture.'}
                     {activeSitrepTab === 10 && 'Outstanding RFI/RFR: None at this time. All pending requests resolved in current operational period.'}
                     {activeSitrepTab === 11 && 'Previous 14‑day Critical Incident Reporting: No critical incidents requiring follow‑on reporting. Prior advisories have been closed.'}
@@ -1094,24 +1178,88 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                 {/* Historical SITREPs View */}
                 <div className="space-y-3">
                   <Label className="text-white text-sm font-semibold">
-                    Previous SITREPs
+                    Previous SITREPs for {filterMode === 'region' ? selectedRegionName : selectedIncidentName}
                   </Label>
 
                   {/* Historical SITREPs List */}
                   {historicalSitreps.length > 0 ? (
-                    <div className="space-y-3">
-                      {historicalSitreps.map((sitrep) => (
-                        <div key={sitrep.id} className="border border-border rounded-lg overflow-hidden bg-background/30">
-                          <div className="p-3 space-y-3">
-                            <span className="caption text-white/70 text-xs block">
-                              Authored by {sitrep.approvedBy} at {sitrep.approvedDate}
-                            </span>
-                            <p className="caption text-white whitespace-pre-wrap">
-                              {sitrep.content}
-                            </p>
+                    <div className="space-y-4">
+                      {historicalSitreps.map((sitrep, index) => {
+                        const activeTab = historicalSitrepTabs[sitrep.id] || 1;
+                        const versionNumber = historicalSitreps.length - index;
+                        return (
+                          <div key={sitrep.id} className="border border-border rounded-lg overflow-hidden bg-background/30">
+                            <div className="p-3 space-y-3">
+                              {/* Header with metadata */}
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-white text-sm font-semibold">
+                                    Version {versionNumber}
+                                  </Label>
+                                </div>
+                                <span className="caption text-white/70 text-xs block">
+                                  Authored by {sitrep.authoredBy} at {sitrep.authoredDate}
+                                </span>
+                                <span className="caption text-white/70 text-xs block">
+                                  Approved by {sitrep.approvedBy} at {sitrep.approvedDate}
+                                </span>
+                              </div>
+
+                              {/* SITREP Section Selector */}
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-1 overflow-x-auto border-b border-border">
+                                  {sitrepSections.map((section) => {
+                                    const isActive = activeTab === section.id;
+                                    return (
+                                      <button
+                                        key={section.id}
+                                        onClick={() => setHistoricalSitrepTabs(prev => ({ ...prev, [sitrep.id]: section.id }))}
+                                        className={`relative px-3 py-2 transition-colors whitespace-nowrap ${
+                                          isActive ? 'text-accent' : 'text-foreground hover:text-accent'
+                                        }`}
+                                      >
+                                        <span className="caption">{section.label}</span>
+                                        {isActive && (
+                                          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Content Area */}
+                              {activeTab === 8 ? (
+                                <div className="space-y-3">
+                                  {[
+                                    { key: 'maneuver', label: 'Maneuver & Force' },
+                                    { key: 'intel', label: 'Intelligence & Info' },
+                                    { key: 'logistics', label: 'Logistics / Civil Affairs' },
+                                    { key: 'command', label: 'Command and Control' },
+                                    { key: 'force', label: 'Force Protection' },
+                                    { key: 'other', label: 'Other' }
+                                  ].map((item) => (
+                                    <div
+                                      key={item.key}
+                                      className="border border-border rounded-lg p-3"
+                                      style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+                                    >
+                                      <span className="caption text-white block mb-2">{item.label}</span>
+                                      <p className="caption text-white/80">Historical readiness data not available for this section.</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="bg-input-background border border-border rounded p-3 min-h-[180px]">
+                                  <p className="text-white whitespace-pre-wrap" style={{ fontSize: '12px' }}>
+                                    {sitrep.sections[activeTab] || 'No content available for this section.'}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="bg-input-background border border-border rounded p-3 min-h-[240px] flex items-center justify-center">
@@ -1122,7 +1270,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                   )}
                 </div>
               </>
-            ) : (
+            ) : sitrepViewMode === 'drafts' ? (
               <>
                 {/* My Drafts View */}
                 <div className="space-y-3">
@@ -1133,7 +1281,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                     </Label>
                     {!isAddingDraft && (
                       <button
-                        onClick={() => setIsDraftModalOpen(true)}
+                        onClick={startNewDraftFromLatest}
                         className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1"
                       >
                         <span className="text-white text-xs">+</span>
@@ -1622,6 +1770,12 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                                   [activeDraftTab]: html
                                 });
                               }}
+                              onObjectClick={(objectName) => setSelectedDraftObjectName(objectName)}
+                              mentionOptions={[
+                                'Cutter Vessel 001',
+                                'Strike Team Alpha',
+                                'Division Bravo'
+                              ]}
                               placeholder={(() => {
                                 const labels: Record<number, string> = {
                                   1: 'Enter reporting unit information...',
@@ -1731,6 +1885,126 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
                       </p>
                     </div>
                   )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Review Queue View */}
+                <div className="space-y-3">
+                  <Label className="text-white text-sm font-semibold">
+                    Review Queue
+                  </Label>
+
+                  <div className="space-y-4">
+                    <div className="border border-border rounded-lg overflow-hidden bg-background/30">
+                      <div className="p-3 space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-white text-sm font-semibold">
+                              SITREP for Incident Alpha: Version 3
+                            </Label>
+                            {!reviewEditMode && (
+                              <button
+                                onClick={() => setReviewEditMode(true)}
+                                className="p-1 hover:bg-muted/30 rounded transition-colors"
+                                title="Edit SITREP"
+                              >
+                                <Edit2 className="w-3 h-3 text-white" />
+                              </button>
+                            )}
+                          </div>
+                          <span className="caption text-white/70 text-xs block">
+                            Authored by LT Jackson Chen at 12/16/2025 13:15
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1 overflow-x-auto border-b border-border">
+                            {sitrepSections.map((section) => {
+                              const isActive = reviewQueueTab === section.id;
+                              return (
+                                <button
+                                  key={section.id}
+                                  onClick={() => setReviewQueueTab(section.id)}
+                                  className={`relative px-3 py-2 transition-colors whitespace-nowrap ${
+                                    isActive ? 'text-accent' : 'text-foreground hover:text-accent'
+                                  }`}
+                                >
+                                  <span className="caption">{section.label}</span>
+                                  {isActive && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {reviewQueueTab === 8 ? (
+                          <div className="space-y-3">
+                            {[
+                              { key: 'maneuver', label: 'Maneuver & Force' },
+                              { key: 'intel', label: 'Intelligence & Info' },
+                              { key: 'logistics', label: 'Logistics / Civil Affairs' },
+                              { key: 'command', label: 'Command and Control' },
+                              { key: 'force', label: 'Force Protection' },
+                              { key: 'other', label: 'Other' }
+                            ].map((item) => (
+                              <div
+                                key={item.key}
+                                className="border border-border rounded-lg p-3"
+                                style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+                              >
+                                <span className="caption text-white block mb-2">{item.label}</span>
+                                <p className="caption text-white/80">Historical readiness data not available for this section.</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : reviewEditMode ? (
+                          <Textarea
+                            value={reviewEditContents[reviewQueueTab] || ''}
+                            onChange={(e) => setReviewEditContents(prev => ({ ...prev, [reviewQueueTab]: e.target.value }))}
+                            className="bg-input-background border-border min-h-[180px] resize-none text-white"
+                            style={{ fontSize: '12px' }}
+                          />
+                        ) : (
+                          <div className="bg-input-background border border-border rounded p-3 min-h-[180px]">
+                            <p className="text-white whitespace-pre-wrap" style={{ fontSize: '12px' }}>
+                              {reviewEditContents[reviewQueueTab] || 'No content available for this section.'}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 mt-2">
+                          {reviewEditMode ? (
+                            <>
+                              <button
+                                onClick={() => setReviewEditMode(false)}
+                                className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors"
+                              >
+                                Update Draft
+                              </button>
+                              <button
+                                onClick={() => setReviewEditMode(false)}
+                                className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors">
+                                Approve
+                              </button>
+                              <button className="bg-black hover:bg-black/80 text-white caption px-4 py-1.5 rounded-[4px] transition-colors border border-[#6e757c]">
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -2421,6 +2695,174 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         </SheetContent>
       </Sheet>
 
+      {selectedDraftObjectName !== null && (
+        <div className="fixed left-0 top-0 z-50 h-screen w-[33.33vw] flex items-center justify-center p-4 overflow-y-auto" style={{ isolation: 'isolate' }}>
+          <div className="absolute inset-0" style={{ zIndex: 0, backgroundColor: 'rgba(0, 0, 0, 0.42)', backdropFilter: 'blur(2px)' }} />
+          {(() => {
+            const detailsByResource: Record<string, {
+              name: string;
+              description: string;
+              identifier: string;
+              quantity: string;
+              status: 'Onsite' | 'In Transit' | 'Deployed';
+              dateOrdered: string;
+              eta: string;
+              incidentAssignment: string;
+              location: string;
+              assignees: string;
+            }> = {
+              'Cutter Vessel 001': {
+                name: 'USCG Cutter Vessel 001',
+                description: 'Multi-mission cutter assigned to harbor patrol, interdiction, and rapid response support for Sector New York operations.',
+                identifier: 'Cutter Patrol Unit',
+                quantity: '1 vessel + 14 crew',
+                status: 'Deployed',
+                dateOrdered: '02/12/2026 07:20',
+                eta: 'On station',
+                incidentAssignment: 'Maritime Interdiction Patrol - Sector New York',
+                location: 'Upper New York Bay, Grid NY-17',
+                assignees: 'LT Morgan Hayes, BM1 Carla Ruiz, MK2 Aaron Kim'
+              },
+              'Strike Team Alpha': {
+                name: 'Strike Team Alpha',
+                description: 'Rapid deployment strike team configured for waterfront response, perimeter reinforcement, and coordinated law-enforcement support.',
+                identifier: 'Rapid Response Team',
+                quantity: '9 personnel',
+                status: 'In Transit',
+                dateOrdered: '02/12/2026 08:05',
+                eta: 'Next 35 min',
+                incidentAssignment: 'Rapid Response / Pier Security Reinforcement',
+                location: 'Port Newark Security Zone',
+                assignees: 'Sgt. Emily Park, PO1 Daniel Ortiz, PO2 Kevin Shaw'
+              },
+              'Division Bravo': {
+                name: 'Division Bravo',
+                description: 'Command and coordination division responsible for incident liaison, routing updates, and synchronization with district operations.',
+                identifier: 'Command Division',
+                quantity: '6 officers',
+                status: 'Onsite',
+                dateOrdered: '02/12/2026 06:50',
+                eta: 'Now',
+                incidentAssignment: 'Incident Command Liaison and Traffic Control',
+                location: 'Sector Operations Center - South Annex',
+                assignees: 'LCDR Sarah Mitchell, LT Jackson Chen, CWO Lena Patel'
+              }
+            };
+
+            const details = detailsByResource[selectedDraftObjectName] || {
+              name: selectedDraftObjectName,
+              description: 'Resource details pending confirmation from operations.',
+              identifier: 'Resource',
+              quantity: 'TBD',
+              status: 'In Transit' as const,
+              dateOrdered: 'TBD',
+              eta: 'TBD',
+              incidentAssignment: 'Pending assignment',
+              location: 'Location TBD',
+              assignees: 'No assignees'
+            };
+
+            const statusColor =
+              details.status === 'Onsite'
+                ? '#12B76A'
+                : details.status === 'Deployed'
+                  ? '#72D4D4'
+                  : '#FEC84B';
+
+            return (
+              <div
+                className="relative z-10 border border-border rounded-lg overflow-hidden"
+                style={{
+                  width: 'calc(33.33vw - 3rem)',
+                  maxWidth: 'calc(33.33vw - 3rem)',
+                  background: 'linear-gradient(90deg, rgba(2, 163, 254, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)'
+                }}
+              >
+                <button
+                  onClick={() => setSelectedDraftObjectName(null)}
+                  className="absolute right-2 top-2 p-1 rounded hover:bg-muted/30 transition-colors text-white/80 hover:text-white"
+                  aria-label="Close resource list item"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                <div className="p-3 border-b border-border pr-9">
+                  <div className="flex items-start gap-2">
+                    <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <span className="caption text-white block !whitespace-normal !break-words">{details.name}</span>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="caption text-white !whitespace-normal !break-words min-w-0">
+                          {details.identifier} • Qty: {details.quantity}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className="inline-block h-2 w-2 rounded-full"
+                            style={{ backgroundColor: statusColor }}
+                          />
+                          <span className="caption" style={{ color: statusColor }}>
+                            {details.status}
+                          </span>
+                          <button
+                            className="p-0.5 hover:bg-muted/30 rounded transition-colors"
+                            title="Show on map"
+                          >
+                            <Map className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4 bg-card/50">
+                  <div>
+                    <label className="text-white mb-1 block">Description</label>
+                    <p className="caption text-white !whitespace-normal !break-words">{details.description}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="min-w-0">
+                      <label className="text-white mb-1 block">Date/Time Ordered</label>
+                      <p className="caption text-white !whitespace-normal !break-words">{details.dateOrdered}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-white mb-1 block">ETA</label>
+                      <p className="caption text-white !whitespace-normal !break-words">{details.eta}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-white mb-1 block">Incident Assignment</label>
+                      <p className="caption text-white !whitespace-normal !break-words">{details.incidentAssignment}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-white mb-1 block">Location</label>
+                      <p className="caption text-white !whitespace-normal !break-words">{details.location}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-white mb-1 block">Assignees</label>
+                      <p className="caption text-white !whitespace-normal !break-words">{details.assignees}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-white mb-1 block">Symbology</label>
+                      <div className="mt-1">
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            backgroundColor: '#3b82f6',
+                            position: 'relative',
+                            zIndex: 10,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {/* SITREP Popout Modal */}
       <Dialog open={sitrepPopoutOpen} onOpenChange={setSitrepPopoutOpen}>
         <DialogContent
@@ -2429,9 +2871,7 @@ export function OverviewPhase({ data, onDataChange, onAddAIContext }: OverviewPh
         >
           <DialogHeader>
             <DialogTitle className="text-white">
-              SITREP for {filterMode === 'region' 
-                ? regions.find(r => r.id === selectedRegion)?.name 
-                : incidents.find(i => i.id === selectedIncident)?.name}
+              SITREP for {filterMode === 'region' ? selectedRegionName : selectedIncidentName}
             </DialogTitle>
           </DialogHeader>
 

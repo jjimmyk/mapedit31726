@@ -22,6 +22,7 @@ interface AlertsPhaseProps {
   onZoomToLocation?: (center: string, scale: string) => void;
   onAddAIContext?: (itemName: string) => void;
   onShowMapMarker?: (id: string, lat: number, lon: number, color: string) => void;
+  onIncidentNotification?: (count: number) => void;
 }
 
 type Severity = 'Info' | 'Advisory' | 'Watch' | 'Warning' | 'Stand Down Safety';
@@ -43,7 +44,7 @@ interface AlertItem {
   location?: string; // Location where alert applies
 }
 
-export function AlertsPhase({ data, onDataChange, onZoomToLocation, onAddAIContext, onShowMapMarker }: AlertsPhaseProps) {
+export function AlertsPhase({ data, onDataChange, onZoomToLocation, onAddAIContext, onShowMapMarker, onIncidentNotification }: AlertsPhaseProps) {
   // Helper functions for notification severity
   const getNotificationSeverity = (notificationId: string): 'Minor' | 'Moderate' | 'Serious' | 'Severe' | 'Critical' => {
     switch (notificationId) {
@@ -80,6 +81,7 @@ export function AlertsPhase({ data, onDataChange, onZoomToLocation, onAddAIConte
 
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedAlerts, setExpandedAlerts] = useState<Set<string>>(new Set());
+  const [activationConfirmType, setActivationConfirmType] = useState<'accept' | 'decline' | null>(null);
   const [expandedRecipientSections, setExpandedRecipientSections] = useState<Set<string>>(new Set());
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingAlertId, setEditingAlertId] = useState<string | null>(null);
@@ -168,6 +170,19 @@ export function AlertsPhase({ data, onDataChange, onZoomToLocation, onAddAIConte
 
   const [alerts, setAlerts] = useState<AlertItem[]>(
     data.alerts || [
+      {
+        id: 'al-activation',
+        title: 'Activation Request: Incident Alpha',
+        source: 'Incident Command',
+        severity: 'Advisory',
+        issuedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        status: 'Active',
+        description: 'Activation request received for Incident Alpha. Incident Management Team deployment pending approval. Respond to acknowledge and confirm resource availability.',
+        timeSent: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+        sentBy: 'ops.center@sector-ny.uscg.mil',
+        location: 'Sector New York - Operations Center'
+      },
       {
         id: 'al0',
         title: 'Civil Disturbance Emerging Near MetLife Stadium',
@@ -948,6 +963,119 @@ export function AlertsPhase({ data, onDataChange, onZoomToLocation, onAddAIConte
       {viewMode === 'active' && (
         <div className="space-y-4">
         
+        {/* Activation Request: Incident Alpha */}
+        <div
+          className="border border-border rounded-lg overflow-hidden"
+          style={{ background: 'linear-gradient(90deg, rgba(104, 118, 238, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)' }}
+        >
+          <div className={`p-3 ${expandedAlerts.has('activation-incident-alpha') ? 'border-b border-border' : ''}`}>
+            <div className="flex items-start justify-between">
+              <div
+                className="flex items-start gap-2 flex-1 cursor-pointer"
+                onClick={() => {
+                  const id = 'activation-incident-alpha';
+                  setExpandedAlerts(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  });
+                }}
+              >
+                {expandedAlerts.has('activation-incident-alpha') ? (
+                  <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="caption text-white">Activation Request: Incident Alpha</span>
+                    <span 
+                      className="caption px-2 py-0.5 rounded text-xs"
+                      style={{ 
+                        backgroundColor: `${getSeverityColor('Critical')}20`,
+                        color: getSeverityColor('Critical'),
+                        border: `1px solid ${getSeverityColor('Critical')}60`
+                      }}
+                    >
+                      Critical
+                    </span>
+                  </div>
+                  <div className="space-y-2 mt-1">
+                    <div className="flex items-center gap-3">
+                      <span className="caption text-white">From: CAPT Rachel Torres (r.torres@sector-ny.uscg.mil)</span>
+                      <span className="caption text-white">{formatMilitaryTimeUTC(new Date(Date.now() - 5 * 60 * 1000).toISOString())}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {expandedAlerts.has('activation-incident-alpha') && (
+            <div className="p-4 space-y-4 bg-card/50">
+              <div>
+                <label className="text-white mb-1 block">Incident Categories</label>
+                <p className="caption text-white">Security Threat, Maritime Incident</p>
+              </div>
+              <div>
+                <label className="text-white mb-1 block">Initial Situation Report</label>
+                <p className="caption text-white">Unidentified vessel detected approaching restricted maritime zone near Sector New York AOR. Vessel is non-responsive to radio hails on VHF Channel 16. Coast Guard Cutter Vessel 001 has been diverted to intercept. Strike Team Alpha placed on standby for potential boarding operations. All units maintain heightened readiness posture until situation is resolved.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <label className="text-white block">Incident Location</label>
+                    <button
+                      onClick={() => {
+                        const mapEl = document.querySelector('arcgis-embedded-map') as any;
+                        if (mapEl?.view) {
+                          mapEl.view.goTo({ center: [-74.0445, 40.6432], zoom: 14 }, { duration: 1500 });
+                        }
+                      }}
+                      className="p-0.5 hover:bg-muted/30 rounded transition-colors shrink-0"
+                      title="Jump to location on map"
+                    >
+                      <Map className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                  <p className="caption text-white">Upper New York Bay, Grid NY-17 (40.6432° N, 74.0445° W)</p>
+                </div>
+                <div>
+                  <label className="text-white mb-1 block">AORs</label>
+                  <p className="caption text-white">Sector New York, Sector Long Island Sound</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-white mb-1 block">Responsible Unit</label>
+                  <p className="caption text-white">Cutter Vessel 001, Strike Team Alpha, Division Bravo</p>
+                </div>
+              </div>
+              <div className="pt-2">
+                <p className="caption text-white font-medium">Your Position: Logistics Section Chief</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-white mb-1 block">Notes for CAPT Rachel Torres (r.torres@sector-ny.uscg.mil)</label>
+                <textarea
+                  className="w-full min-h-[80px] bg-input-background border border-border rounded-md px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-accent"
+                  placeholder="Enter notes..."
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setActivationConfirmType('accept')}
+                  className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors"
+                >
+                  Accept Activation
+                </button>
+                <button
+                  onClick={() => setActivationConfirmType('decline')}
+                  className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                >
+                  Decline Activation
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Civil Disturbance Alert - Grist Mill Social Media */}
         <div
           className="border border-border rounded-lg overflow-hidden"
@@ -3593,6 +3721,46 @@ export function AlertsPhase({ data, onDataChange, onZoomToLocation, onAddAIConte
               </>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activation Confirm Modal */}
+      <Dialog open={activationConfirmType !== null} onOpenChange={(open) => { if (!open) setActivationConfirmType(null); }}>
+        <DialogContent className="bg-[#222529] border-[#6e757c] text-white" style={{ maxWidth: '840px' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white text-sm font-semibold">
+              {activationConfirmType === 'accept' ? 'Confirm Accept Activation' : 'Confirm Decline Activation'}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-white text-sm">
+            {activationConfirmType === 'accept'
+              ? 'Are you sure you want to accept the activation request for Incident Alpha? You will be assigned as Logistics Section Chief.'
+              : 'Are you sure you want to decline the activation request for Incident Alpha?  '}
+          </p>
+          <div className="flex gap-3 pt-2 justify-end">
+            <button
+              onClick={() => setActivationConfirmType(null)}
+              className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (activationConfirmType === 'accept') {
+                  toast.success('You have been added to the Incident Alpha Roster.');
+                  onIncidentNotification?.(1);
+                }
+                setActivationConfirmType(null);
+              }}
+              className={`text-white caption px-4 py-1.5 rounded-[4px] transition-colors ${
+                activationConfirmType === 'accept'
+                  ? 'bg-[#01669f] hover:bg-[#01669f]/90'
+                  : 'bg-red-600 hover:bg-red-600/90'
+              }`}
+            >
+              {activationConfirmType === 'accept' ? 'Accept Activation' : 'Decline Activation'}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

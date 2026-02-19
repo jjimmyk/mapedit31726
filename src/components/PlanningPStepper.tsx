@@ -9,9 +9,10 @@ interface PlanningPStepperProps {
   operationalPeriodNumber?: number;
   showHeader?: boolean;
   notificationCount?: number;
+  incidentNotificationCount?: number;
 }
 
-export function PlanningPStepper({ phases, currentPhaseId, onPhaseSelect, operationalPeriodNumber = 0, showHeader = true, notificationCount = 0 }: PlanningPStepperProps) {
+export function PlanningPStepper({ phases, currentPhaseId, onPhaseSelect, operationalPeriodNumber = 0, showHeader = true, notificationCount = 0, incidentNotificationCount = 0 }: PlanningPStepperProps) {
   
   return (
     <div className="px-4 bg-card border-b border-border">
@@ -70,6 +71,29 @@ export function PlanningPStepper({ phases, currentPhaseId, onPhaseSelect, operat
                   )}
                   {phase.id === 'alerts' && <Bell className="w-4 h-4" />}
                   {phase.id === 'overview' && <FileText className="w-4 h-4" />}
+                  {phase.id === 'objectives-actions' && incidentNotificationCount > 0 && (
+                    <div 
+                      className="rounded-full text-white"
+                      style={{ 
+                        width: '20px', 
+                        height: '20px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        backgroundColor: '#ef4444',
+                        zIndex: 9999,
+                        position: 'relative',
+                        border: '2px solid #ef4444',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        lineHeight: '20px'
+                      }}
+                    >
+                      {incidentNotificationCount}
+                    </div>
+                  )}
                   {phase.id === 'objectives-actions' && <AlertTriangle className="w-4 h-4" />}
                   {phase.id === 'incident-roster' && <MapPin className="w-4 h-4" />}
                   {phase.id === 'resources' && <Box className="w-4 h-4" />}

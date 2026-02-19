@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -153,6 +154,21 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
   const [expandedObjectives, setExpandedObjectives] = useState<Set<string>>(new Set());
   const [expandedChildIncidents, setExpandedChildIncidents] = useState<Set<string>>(new Set());
   const [isAddIncidentModalOpen, setIsAddIncidentModalOpen] = useState(false);
+  const [newIncidentName, setNewIncidentName] = useState('');
+  const [newIncidentCategories, setNewIncidentCategories] = useState<string[]>([]);
+  const [newIncidentSitrep, setNewIncidentSitrep] = useState('');
+  const [newIncidentCategoryOpen, setNewIncidentCategoryOpen] = useState(false);
+  const [newIncidentLocation, setNewIncidentLocation] = useState('');
+  const [newIncidentAORs, setNewIncidentAORs] = useState<string[]>([]);
+  const [newIncidentAOROpen, setNewIncidentAOROpen] = useState(false);
+  const [newIncidentUnits, setNewIncidentUnits] = useState<string[]>([]);
+  const [newIncidentUnitOpen, setNewIncidentUnitOpen] = useState(false);
+  const [addIncidentStep, setAddIncidentStep] = useState<1 | 2>(1);
+  const [newIncidentStartTime, setNewIncidentStartTime] = useState(() => {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  });
   const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>([]);
   const [isIncidentTypePopoverOpen, setIsIncidentTypePopoverOpen] = useState(false);
   const [selectedAORs, setSelectedAORs] = useState<string[]>([]);
@@ -1584,11 +1600,245 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
       </div>
 
       {/* Add Incident Modal */}
-      <Dialog open={isAddIncidentModalOpen} onOpenChange={setIsAddIncidentModalOpen}>
-        <DialogContent className="bg-[#222529] border-[#6e757c]">
+      <Dialog open={isAddIncidentModalOpen} onOpenChange={(open) => {
+        setIsAddIncidentModalOpen(open);
+        if (!open) {
+          setNewIncidentName('');
+          setNewIncidentCategories([]);
+          setNewIncidentSitrep('');
+          setNewIncidentLocation('');
+          setNewIncidentAORs([]);
+          setNewIncidentUnits([]);
+          setNewIncidentStartTime(() => { const now = new Date(); const pad = (n: number) => n.toString().padStart(2, '0'); return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`; });
+          setAddIncidentStep(1);
+        }
+      }}>
+        <DialogContent className="bg-[#222529] border-[#6e757c] text-white" style={{ maxWidth: '1296px', width: '1296px' }}>
           <DialogHeader>
-            <DialogTitle className="caption text-white">placeholder modal</DialogTitle>
+            <DialogTitle className="text-white text-sm font-semibold">Add Incident</DialogTitle>
           </DialogHeader>
+
+          {/* Stepper Indicator */}
+          <div className="flex items-center gap-4 py-4">
+            <button onClick={() => setAddIncidentStep(1)} className="flex items-center gap-2 cursor-pointer">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-medium" style={addIncidentStep === 1 ? { backgroundColor: '#60a5fa', boxShadow: '0 0 0 4px rgba(96, 165, 250, 0.3)' } : addIncidentStep > 1 ? { backgroundColor: '#16a34a' } : { backgroundColor: '#6b7280' }}>
+                {addIncidentStep > 1 ? '✓' : '1'}
+              </div>
+              <span className={`text-sm ${addIncidentStep === 1 ? 'text-white font-medium' : 'text-white/70'}`}>Name & Location</span>
+            </button>
+            <div className="flex-[0.3] h-[2px] bg-border"></div>
+            <button onClick={() => setAddIncidentStep(2)} className="flex items-center gap-2 cursor-pointer">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-medium" style={addIncidentStep === 2 ? { backgroundColor: '#60a5fa', boxShadow: '0 0 0 4px rgba(96, 165, 250, 0.3)' } : { backgroundColor: '#6b7280' }}>
+                2
+              </div>
+              <span className={`text-sm ${addIncidentStep === 2 ? 'text-white font-medium' : 'text-white/70'}`}>Configure Team</span>
+            </button>
+          </div>
+
+          <div className="flex gap-4" style={{ minHeight: '576px' }}>
+            {/* Left half: form fields */}
+            <div className="w-1/2 space-y-4 overflow-y-auto pr-2">
+              {addIncidentStep === 1 ? (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">Incident Name</label>
+                    <Input
+                      value={newIncidentName}
+                      onChange={(e) => setNewIncidentName(e.target.value)}
+                      placeholder="e.g., Suspicious Package - Gate B"
+                      className="bg-input-background border-border text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">Incident Category</label>
+                    <Popover open={newIncidentCategoryOpen} onOpenChange={setNewIncidentCategoryOpen}>
+                      <PopoverTrigger asChild>
+                        <button className="w-full bg-input-background border border-border rounded-md px-3 py-2 text-left text-sm text-white flex items-center justify-between">
+                          <span className={newIncidentCategories.length > 0 ? 'text-white' : 'text-white/50'}>
+                            {newIncidentCategories.length > 0 ? newIncidentCategories.join(', ') : 'Select categories...'}
+                          </span>
+                          <ChevronDown className="h-3 w-3 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#222529] border-[#6e757c]" align="start">
+                        <Command className="bg-[#222529]">
+                          <CommandInput placeholder="Search categories..." className="h-9 text-white text-sm" />
+                          <CommandList className="max-h-48">
+                            <CommandEmpty className="text-white text-sm p-2">No results.</CommandEmpty>
+                            <CommandGroup>
+                              {['Security Threat', 'Suspicious Activity', 'Mass Casualty', 'Cyber Incident', 'Environmental Hazard', 'Infrastructure Failure', 'Civil Disturbance', 'Aviation Incident', 'Maritime Incident', 'CBRN'].map((cat) => (
+                                <CommandItem
+                                  key={cat}
+                                  value={cat}
+                                  onSelect={() => {
+                                    setNewIncidentCategories(prev =>
+                                      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                                    );
+                                  }}
+                                  className="text-white text-sm flex items-center gap-2"
+                                >
+                                  <Checkbox checked={newIncidentCategories.includes(cat)} className="border-[#6e757c]" />
+                                  <span>{cat}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">Initial Situation Report</label>
+                    <Textarea
+                      value={newIncidentSitrep}
+                      onChange={(e) => setNewIncidentSitrep(e.target.value)}
+                      placeholder="Enter initial situation report..."
+                      className="min-h-[100px] bg-input-background border-border text-white resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">Incident Location</label>
+                    <div className="flex gap-2">
+                      <button className="bg-transparent border border-[#6e757c] text-white caption px-3 py-1 rounded-[4px] hover:bg-[#222529] transition-colors text-xs">
+                        Input Coordinates
+                      </button>
+                      <button className="bg-transparent border border-[#6e757c] text-white caption px-3 py-1 rounded-[4px] hover:bg-[#222529] transition-colors text-xs">
+                        Draw Location
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">AOR</label>
+                    <Popover open={newIncidentAOROpen} onOpenChange={setNewIncidentAOROpen}>
+                      <PopoverTrigger asChild>
+                        <button className="w-full bg-input-background border border-border rounded-md px-3 py-2 text-left text-sm text-white flex items-center justify-between">
+                          <span className={newIncidentAORs.length > 0 ? 'text-white' : 'text-white/50'}>
+                            {newIncidentAORs.length > 0 ? newIncidentAORs.join(', ') : 'Select AORs...'}
+                          </span>
+                          <ChevronDown className="h-3 w-3 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#222529] border-[#6e757c]" align="start">
+                        <Command className="bg-[#222529]">
+                          <CommandInput placeholder="Search AORs..." className="h-9 text-white text-sm" />
+                          <CommandList className="max-h-48">
+                            <CommandEmpty className="text-white text-sm p-2">No results.</CommandEmpty>
+                            <CommandGroup>
+                              {['Sector New York', 'Sector Boston', 'Sector Northern New England', 'Sector Southeastern New England', 'Sector Long Island Sound', 'Sector Delaware Bay', 'Sector Maryland-NCR'].map((aor) => (
+                                <CommandItem
+                                  key={aor}
+                                  value={aor}
+                                  onSelect={() => {
+                                    setNewIncidentAORs(prev =>
+                                      prev.includes(aor) ? prev.filter(a => a !== aor) : [...prev, aor]
+                                    );
+                                  }}
+                                  className="text-white text-sm flex items-center gap-2"
+                                >
+                                  <Checkbox checked={newIncidentAORs.includes(aor)} className="border-[#6e757c]" />
+                                  <span>{aor}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">Start Time</label>
+                    <Input
+                      type="datetime-local"
+                      value={newIncidentStartTime}
+                      onChange={(e) => setNewIncidentStartTime(e.target.value)}
+                      className="bg-input-background border-border text-white"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setAddIncidentStep(2)}
+                      className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setIsAddIncidentModalOpen(false)}
+                      className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 flex items-center justify-center border border-dashed border-[#6e757c] rounded-lg">
+                    <span className="text-white/50 text-sm"> [placeholder for default incident roster org chart. The user can only assign users within their Home AOR to incident roster positions.]</span>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setAddIncidentStep(1)}
+                      className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (newIncidentName.trim()) {
+                          const newId = (objectives.length + 1).toString();
+                          const newObjective: Objective = {
+                            id: newId,
+                            title: newIncidentName.trim(),
+                            type: 'Operational',
+                            actions: [],
+                          };
+                          setObjectives(prev => [...prev, newObjective]);
+                          setIsAddIncidentModalOpen(false);
+                          setNewIncidentName('');
+                          setNewIncidentCategories([]);
+                          setNewIncidentSitrep('');
+                          setNewIncidentLocation('');
+                          setNewIncidentAORs([]);
+                          setNewIncidentUnits([]);
+                          setNewIncidentStartTime(() => { const now = new Date(); const pad = (n: number) => n.toString().padStart(2, '0'); return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`; });
+                          setAddIncidentStep(1);
+                        }
+                      }}
+                      className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors"
+                    >
+                      Add Incident
+                    </button>
+                    <button
+                      onClick={() => setIsAddIncidentModalOpen(false)}
+                      className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right half: ArcGIS basemap (step 1 only) */}
+            {addIncidentStep === 1 && (
+              <div className="w-1/2 border border-border rounded-lg overflow-hidden">
+                <arcgis-embedded-map
+                  style={{ height: '100%', width: '100%', display: 'block' }}
+                  item-id="6cfd425bdabc430789213e791dc6acb9"
+                  theme="light"
+                  center="-74.03131343667845,40.761717806888804"
+                  scale="72223.819286"
+                  portal-url="https://disastertech.maps.arcgis.com"
+                />
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

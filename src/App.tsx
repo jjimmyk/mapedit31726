@@ -44,6 +44,7 @@ export default function App() {
   const [pastOperationalPeriods, setPastOperationalPeriods] = useState<OperationalPeriod[]>([]);
   const [viewingPastPeriod, setViewingPastPeriod] = useState<OperationalPeriod | null>(null);
   const [currentPhaseId, setCurrentPhaseId] = useState<string>('overview');
+  const [incidentNotificationCount, setIncidentNotificationCount] = useState(0);
   const [showCompletionSummary, setShowCompletionSummary] = useState(false);
 
   const [copCollapsed, setCopCollapsed] = useState(false);
@@ -330,6 +331,7 @@ export default function App() {
           onShowMapMarker={(id: string, lat: number, lon: number, color: string) => {
             setMapMarkers([{ id, lat, lon, color }]);
           }}
+          onIncidentNotification={(count: number) => setIncidentNotificationCount(count)}
         />;
       case 'overview':
         return <OverviewPhase {...commonProps} />;
@@ -531,6 +533,7 @@ export default function App() {
                 onPhaseSelect={setCurrentPhaseId}
                 operationalPeriodNumber={displayedPeriod.number}
                 notificationCount={0}
+                incidentNotificationCount={incidentNotificationCount}
               />
             </div>
             

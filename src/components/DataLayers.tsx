@@ -2696,7 +2696,7 @@ export function DataLayers({
                       >
                         <span className="truncate">
                           {layerAORs.length === 0
-                            ? 'Select AORs...'
+                            ? 'AORs...'
                             : layerAORs.length === 1
                             ? layerAORs[0] === 'sector-houston-galveston'
                               ? 'Sector Houston-Galveston'

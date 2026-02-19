@@ -1238,6 +1238,96 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
                       })}
                     </div>
                   </div>
+
+                  {/* Air Stations (Northeast District only) */}
+                  {district.id === 'northeast' && (() => {
+                    const airStations = [
+                      { id: 'air-cape-cod', name: 'Air Station Cape Cod', location: 'Buzzards Bay, MA', email: 'airCapeCod.cc@uscg.mil', phone: '(508) 968-6110', activationStatus: 'Activated' },
+                      { id: 'air-atlantic-city', name: 'Air Station Atlantic City', location: 'Atlantic City, NJ', email: 'airAtlanticCity.cc@uscg.mil', phone: '(609) 677-2200', activationStatus: 'Activated' },
+                      { id: 'air-boston', name: 'Air Station Boston', location: 'Boston, MA', email: 'airBoston.cc@uscg.mil', phone: '(781) 925-4560', activationStatus: 'Activated' },
+                    ];
+                    return (
+                      <div>
+                        <label className="text-white mb-2 block">Air Stations ({airStations.length})</label>
+                        <div className="space-y-2">
+                          {airStations.map((station) => {
+                            const stationId = `${district.id}:${station.id}`;
+                            const isStationExpanded = expandedSectors.has(stationId);
+                            return (
+                              <div
+                                key={stationId}
+                                className="border border-border/50 rounded-lg overflow-hidden"
+                                style={{ backgroundColor: 'rgba(139, 123, 168, 0.15)' }}
+                              >
+                                <div className={`p-3 ${isStationExpanded ? 'border-b border-border/50' : ''}`}>
+                                  <div className="flex items-start justify-between">
+                                    <div
+                                      className="flex items-start gap-2 cursor-pointer flex-1"
+                                      onClick={() => {
+                                        toggleSector(stationId);
+                                        if (onAddAIContext) {
+                                          onAddAIContext(station.name);
+                                        }
+                                      }}
+                                    >
+                                      {isStationExpanded ? (
+                                        <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                      )}
+                                      <span className="caption text-white">{station.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (onZoomToLocation) {
+                                            const coords = getSectorCoordinates(station.id);
+                                            onZoomToLocation(coords.center, coords.scale);
+                                          }
+                                        }}
+                                        className="p-1 hover:bg-muted/30 rounded transition-colors"
+                                        title="Zoom to air station"
+                                      >
+                                        <Map className="w-3 h-3 text-white" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                {isStationExpanded && (
+                                  <div className="p-3 space-y-3 bg-card/20">
+                                    <div className="grid grid-cols-2 gap-3">
+                                      {station.location && (
+                                        <div>
+                                          <label className="text-white mb-1 block text-xs">Location</label>
+                                          <p className="caption text-white text-sm">{station.location}</p>
+                                        </div>
+                                      )}
+                                      <div>
+                                        <label className="text-white mb-1 block text-xs">Command Center Email</label>
+                                        <p className="caption text-white text-sm">{station.email}</p>
+                                      </div>
+                                      <div>
+                                        <label className="text-white mb-1 block text-xs">Command Center Phone</label>
+                                        <p className="caption text-white text-sm">{station.phone}</p>
+                                      </div>
+                                      <div>
+                                        <label className="text-white mb-1 block text-xs">Operating Status</label>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getActivationStatusColor(station.activationStatus) }} />
+                                          <span className="caption text-sm" style={{ color: getActivationStatusTextColor(station.activationStatus) }}>{station.activationStatus}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
