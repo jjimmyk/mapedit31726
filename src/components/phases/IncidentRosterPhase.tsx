@@ -373,7 +373,7 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
       location: 'Seattle, WA',
       description: 'Responsible for Northern California, Oregon, and Washington coastal waters. Emphasizes commercial fishing vessel safety in treacherous North Pacific conditions, environmental response for oil transport routes, and vessel traffic management in the Strait of Juan de Fuca.',
       assignedMembers: [
-        { id: 'aor31', name: 'Sector San Francisco', email: 'secsf.cc@uscg.mil', phone: '(415) 399-3547', location: 'Alameda, CA', checkedIn: true, signedIn: true, activationStatus: 'Activated' },
+        { id: 'aor31', name: 'Sector Miami', email: 'secsf.cc@uscg.mil', phone: '(415) 399-3547', location: 'Alameda, CA', checkedIn: true, signedIn: true, activationStatus: 'Activated' },
         { id: 'aor32', name: 'Sector Puget Sound', email: 'secPugetSound.cc@uscg.mil', phone: '(206) 217-6001', location: 'Seattle, WA', checkedIn: true, signedIn: true, activationStatus: 'Activated' },
         { id: 'aor33', name: 'Sector Columbia River', email: 'secColumbiaRiver.cc@uscg.mil', phone: '(503) 861-6211', location: 'Warrenton, OR', checkedIn: true, signedIn: true, activationStatus: 'Activated' },
         { id: 'aor34', name: 'Sector Humboldt Bay', email: 'secHumboldtBay.cc@uscg.mil', phone: '(707) 839-6113', location: 'Eureka, CA', checkedIn: true, signedIn: true, activationStatus: 'Activated' },
