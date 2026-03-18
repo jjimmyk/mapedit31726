@@ -8,8 +8,17 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Table, TableBody, TableCell, TableRow } from '../ui/table';
-import { ChevronDown, ChevronRight, X, Maximize2, Map, Edit2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, X, Maximize2, Map, Edit2, CheckCircle } from 'lucide-react';
 import svgPaths from '../../imports/svg-7hg6d30srz';
+
+// Object types for Drafting New Data Layer (choose-object dropdown)
+const DRAFTING_OBJECT_TYPES = [
+  { value: 'nexrad-station', label: 'NEXRAD Station', symbology: '#3b82f6' },
+  { value: 'weather-buoy', label: 'Weather Buoy', symbology: '#22c55e' },
+  { value: 'observation-point', label: 'Observation Point', symbology: '#f59e0b' },
+  { value: 'sensor-station', label: 'Sensor Station', symbology: '#8b5cf6' },
+  { value: 'radar-site', label: 'Radar Site', symbology: '#06b6d4' },
+] as const;
 
 interface LayersPhaseProps {
   data: Record<string, any>;
@@ -48,6 +57,34 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
   const [nexradDistrict, setNexradDistrict] = useState('');
   const [nexradSector, setNexradSector] = useState('');
   const [nexradDrawingLocation, setNexradDrawingLocation] = useState(false);
+  const [nexradDescription, setNexradDescription] = useState('');
+  const [draftingObjectType, setDraftingObjectType] = useState<string>('');
+  const [addLayerDropdownOpen, setAddLayerDropdownOpen] = useState(false);
+  const [arcGISConnected, setArcGISConnected] = useState(false);
+  const [showArcGISBrowser, setShowArcGISBrowser] = useState(false);
+  const [arcGISSearchTerm, setArcGISSearchTerm] = useState('');
+  const [arcGISExpandedLayers, setArcGISExpandedLayers] = useState<Set<string>>(new Set());
+  const [arcGISCheckedLayers, setArcGISCheckedLayers] = useState<Set<string>>(new Set());
+  const [arcGISFeatureLayersExpanded, setArcGISFeatureLayersExpanded] = useState(true);
+  const [arcGISWebMapsExpanded, setArcGISWebMapsExpanded] = useState(true);
+  const [weatherLayerSearchTerm, setWeatherLayerSearchTerm] = useState('');
+  const [cutterVesselsSearchTerm, setCutterVesselsSearchTerm] = useState('');
+  const [boomLayerSearchTerm, setBoomLayerSearchTerm] = useState('');
+  const [draftingAORs, setDraftingAORs] = useState<string[]>([]);
+  const [draftingAORsOpen, setDraftingAORsOpen] = useState(false);
+  const [draftingLayerName, setDraftingLayerName] = useState('');
+  const [draftingLayerCategory, setDraftingLayerCategory] = useState('');
+  const [savedDraftObjects, setSavedDraftObjects] = useState<Array<{
+    id: string;
+    type: string;
+    label: string;
+    symbology: string;
+    name: string;
+    latitude: string;
+    longitude: string;
+    description: string;
+  }>>([]);
+  const [expandedDraftObjects, setExpandedDraftObjects] = useState<Set<string>>(new Set());
   const [viewerPositions, setViewerPositions] = useState<string[]>([]);
   const [viewerTeams, setViewerTeams] = useState<string[]>([]);
   const [editorPositions, setEditorPositions] = useState<string[]>([]);
@@ -79,13 +116,13 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
     'World Cup 2026 - Gillette Stadium Operations',
     'World Cup 2026 - Lincoln Financial Field Operations',
     'Credentialing and Access Control - All Venues',
-    'Counter-UAS Operations - Northeast Region',
+    'Counter-UAS Operations - Northeast AORs',
     'Mass Gathering Security - Fan Zones'
   ];
 
   // Available AORs for filtering
   const aors = [
-    'Northeast Region',
+    'Northeast AORs',
     'MetLife Stadium Complex',
     'NYC Metro Area',
     'TSA Screening Operations',
@@ -134,6 +171,9 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
   // Calculate selected/total for weather category
   const weatherSelected = [layerToggles.weather.radar, layerToggles.weather.warnings].filter(Boolean).length;
   const weatherTotal = 2;
+  const normalizedWeatherSearch = weatherLayerSearchTerm.trim().toLowerCase();
+  const showWeatherRadar = normalizedWeatherSearch === '' || 'radar precipitation'.includes(normalizedWeatherSearch);
+  const showWeatherWarnings = normalizedWeatherSearch === '' || 'active weather warnings'.includes(normalizedWeatherSearch);
 
   // Open individual layer modal
   const openIndividualLayerModal = (layerName: string) => {
@@ -255,103 +295,341 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
             </div>
           </div>
 
-          {/* Add Layer Button */}
-          <button
-            onClick={() => {
-              // Add Layer functionality placeholder
-              console.log('Add Layer clicked');
-            }}
-            className="bg-[#01669f] h-[22.75px] rounded-[4px] w-[130.625px] hover:bg-[#01669f]/90 transition-colors flex items-center justify-center relative"
-          >
-            <div className="absolute left-[16px] size-[13px]">
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 13 13">
+          {/* Add Category and Add Layer Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                // Add Category functionality placeholder
+                console.log('Add Category clicked');
+              }}
+              className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <svg className="size-[13px] shrink-0" fill="none" preserveAspectRatio="none" viewBox="0 0 13 13">
                 <g>
                   <path d="M2.70833 6.5H10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                   <path d="M6.5 2.70833V10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
                 </g>
               </svg>
+              <p className="caption text-nowrap text-white">
+                Add Category
+              </p>
+            </button>
+            {/* Add Layer dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setAddLayerDropdownOpen(prev => !prev)}
+                className="bg-[#01669f] h-[22.75px] rounded-[4px] px-3 hover:bg-[#01669f]/90 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <svg className="size-[13px] shrink-0" fill="none" preserveAspectRatio="none" viewBox="0 0 13 13">
+                  <g>
+                    <path d="M2.70833 6.5H10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                    <path d="M6.5 2.70833V10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                  </g>
+                </svg>
+                <p className="caption text-nowrap text-white">Add Layer</p>
+                <ChevronDown className="w-3 h-3 text-white shrink-0" />
+              </button>
+              {addLayerDropdownOpen && (
+                <>
+                  {/* Backdrop to close on outside click */}
+                  <div
+                    className="fixed inset-0 z-[150]"
+                    onClick={() => setAddLayerDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1 z-[151] bg-[#222529] border border-[#6e757c] rounded-md shadow-lg overflow-hidden min-w-[180px]">
+                    <button
+                      className="w-full text-left px-3 py-2 text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                      style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif", lineHeight: '1.5' }}
+                      onClick={() => {
+                        setAddLayerDropdownOpen(false);
+                        onDataChange({ ...data, isDraftingNewDataLayer: true });
+                      }}
+                    >
+                      <svg width="11" height="11" fill="none" viewBox="0 0 13 13" style={{ flexShrink: 0 }}>
+                        <path d="M2.70833 6.5H10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                        <path d="M6.5 2.70833V10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                      </svg>
+                      Add Internal Layer
+                    </button>
+                    <button
+                      className="w-full text-left px-3 py-2 text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                      style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif", lineHeight: '1.5' }}
+                      onClick={() => {
+                        setAddLayerDropdownOpen(false);
+                        setShowArcGISBrowser(true);
+                        setArcGISSearchTerm('');
+                      }}
+                    >
+                      <svg width="11" height="11" fill="none" viewBox="0 0 13 13" style={{ flexShrink: 0 }}>
+                        <path d="M2.70833 6.5H10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                        <path d="M6.5 2.70833V10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                      </svg>
+                      Add From ArcGIS
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-            <p className="caption text-nowrap text-white ml-[21px]">
-              Add Layer
-            </p>
-          </button>
+          </div>
         </div>
+      </div>
+
+      {showArcGISBrowser && (
+        <div>
+          {/* Back button */}
+          <button
+            className="flex items-center gap-1.5 mb-3 text-white/60 hover:text-white transition-colors"
+            style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif" }}
+            onClick={() => setShowArcGISBrowser(false)}
+          >
+            <ChevronRight width={12} height={12} style={{ transform: 'rotate(180deg)', flexShrink: 0 }} />
+            Back to Layers
+          </button>
+
+          {/* Search */}
+          <div className="relative mb-4">
+            <input
+              type="text"
+              value={arcGISSearchTerm}
+              onChange={(e) => setArcGISSearchTerm(e.target.value)}
+              placeholder="Search ArcGIS layers..."
+              className="w-full h-[30px] bg-[#222529] border border-[#6e757c] rounded-[4px] px-3 caption text-white placeholder:text-[#6e757c] focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          {/* Import Selected Layers */}
+          <div className="mb-4">
+            <button
+              className="flex items-center gap-1.5 px-3 h-[26px] rounded border border-[#6e757c] bg-transparent text-white hover:bg-[#6e757c]/20 transition-colors"
+              style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif" }}
+              onClick={() => {
+                if (arcGISCheckedLayers.size > 0) setShowArcGISBrowser(false);
+              }}
+            >
+              Import Selected Layers
+              {arcGISCheckedLayers.size > 0 && (
+                <span
+                  className="ml-0.5 text-white/70"
+                  style={{ fontSize: '11px', fontFamily: "'Open Sans', sans-serif" }}
+                >
+                  ({arcGISCheckedLayers.size})
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Layer groups */}
+          {(() => {
+            const featureLayers = [
+              { name: 'NWS Active Weather Warnings', owner: 'NWS', type: 'Feature', updated: '2025-11-15', color: 'rgba(220,53,69,0.15)' },
+              { name: 'USCG AIS Vessel Tracking', owner: 'USCG', type: 'Feature', updated: '2025-11-14', color: 'rgba(34,197,94,0.15)' },
+              { name: 'Oil Spill Response Zones', owner: 'EPA', type: 'Feature', updated: '2025-10-30', color: 'rgba(234,179,8,0.15)' },
+              { name: 'Shoreline Sensitivity Index', owner: 'NOAA', type: 'Feature', updated: '2025-09-12', color: 'rgba(245,158,11,0.15)' },
+              { name: 'Critical Infrastructure – Gulf Coast', owner: 'DHS', type: 'Feature', updated: '2025-11-01', color: 'rgba(239,68,68,0.15)' },
+              { name: 'Coast Guard Sectors Boundaries', owner: 'USCG', type: 'Feature', updated: '2025-07-05', color: 'rgba(99,102,241,0.15)' },
+            ];
+            const webMaps = [
+              { name: 'NOAA Weather Radar (NEXRAD)', owner: 'NOAA', type: 'Raster', updated: '2025-11-15', color: 'rgba(59,130,246,0.15)' },
+              { name: 'Federal Staging Areas', owner: 'FEMA', type: 'Feature', updated: '2025-11-10', color: 'rgba(139,92,246,0.15)' },
+              { name: 'Pipeline Infrastructure Network', owner: 'PHMSA', type: 'Feature', updated: '2025-10-15', color: 'rgba(249,115,22,0.15)' },
+              { name: 'Flood Inundation Forecast', owner: 'NWS', type: 'Raster', updated: '2025-11-13', color: 'rgba(6,182,212,0.15)' },
+              { name: 'Protected Marine Areas', owner: 'NOAA', type: 'Feature', updated: '2025-08-20', color: 'rgba(20,184,166,0.15)' },
+              { name: 'Satellite Imagery – Gulf AORs', owner: 'NASA', type: 'Imagery', updated: '2025-11-15', color: 'rgba(236,72,153,0.15)' },
+            ];
+
+            const filterLayers = (layers: typeof featureLayers) =>
+              arcGISSearchTerm === ''
+                ? layers
+                : layers.filter(l =>
+                    l.name.toLowerCase().includes(arcGISSearchTerm.toLowerCase()) ||
+                    l.owner.toLowerCase().includes(arcGISSearchTerm.toLowerCase()) ||
+                    l.type.toLowerCase().includes(arcGISSearchTerm.toLowerCase())
+                  );
+
+            const renderLayerItem = (layer: typeof featureLayers[number]) => (
+              <div key={layer.name} className="border border-border/30 rounded-md overflow-hidden bg-card/30">
+                <div className="flex items-center gap-3 py-3 px-3">
+                  <Checkbox
+                    checked={arcGISCheckedLayers.has(layer.name)}
+                    onCheckedChange={(v) =>
+                      setArcGISCheckedLayers((prev) => {
+                        const next = new Set(prev);
+                        v ? next.add(layer.name) : next.delete(layer.name);
+                        return next;
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setArcGISExpandedLayers((prev) => {
+                        const next = new Set(prev);
+                        next.has(layer.name) ? next.delete(layer.name) : next.add(layer.name);
+                        return next;
+                      })
+                    }
+                    className="flex items-center gap-1 flex-1 bg-transparent p-0"
+                  >
+                    {arcGISExpandedLayers.has(layer.name) ? (
+                      <ChevronDown className="w-3 h-3 text-white flex-shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 text-white flex-shrink-0" />
+                    )}
+                    <Label className="cursor-pointer flex-1">{layer.name}</Label>
+                  </button>
+                  <button
+                    type="button"
+                    className="shrink-0 px-2 h-[20px] rounded border border-[#6e757c]/50 text-white/60 hover:text-white hover:border-[#6e757c] hover:bg-[#6e757c]/20 transition-colors"
+                    style={{ fontSize: '11px', fontFamily: "'Open Sans', sans-serif" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Preview
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 p-0 hover:bg-muted"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setArcGISExpandedLayers((prev) => {
+                        const next = new Set(prev);
+                        next.has(layer.name) ? next.delete(layer.name) : next.add(layer.name);
+                        return next;
+                      });
+                    }}
+                    title="View layer details"
+                  >
+                    <Maximize2 className="w-3 h-3 text-white" />
+                  </Button>
+                  <span
+                    className="inline-block w-3 h-3 rounded-[2px]"
+                    style={{ backgroundColor: layer.color, border: '1px solid rgba(255,255,255,0.6)' }}
+                    aria-hidden
+                  />
+                </div>
+                {arcGISExpandedLayers.has(layer.name) && (
+                  <div className="px-4 py-4">
+                    <div className="text-sm leading-none text-white">Last Updated: {layer.updated}</div>
+                    <div className="text-sm leading-none text-white mt-3">Owner: {layer.owner}</div>
+                    <div className="text-sm leading-none text-white mt-3">Type: {layer.type}</div>
+                  </div>
+                )}
+              </div>
+            );
+
+            const renderGroup = (
+              title: string,
+              layers: typeof featureLayers,
+              expanded: boolean,
+              setExpanded: (v: boolean) => void
+            ) => {
+              const visible = filterLayers(layers);
+              if (arcGISSearchTerm !== '' && visible.length === 0) return null;
+              return (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div
+                    className={`p-3 ${expanded ? 'border-b border-border' : ''}`}
+                  >
+                    <div
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => setExpanded(!expanded)}
+                    >
+                      {expanded ? (
+                        <ChevronDown className="w-4 h-4 text-white flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-white flex-shrink-0" />
+                      )}
+                      <Label className="cursor-pointer">{title}</Label>
+                      <span
+                        className="ml-1 px-1.5 rounded-full text-white/50"
+                        style={{ fontSize: '10px', fontFamily: "'Open Sans', sans-serif" }}
+                      >
+                        {visible.length}
+                      </span>
+                    </div>
+                  </div>
+                  {expanded && (
+                    <div className="p-3 space-y-2">
+                      {visible.map(renderLayerItem)}
+                    </div>
+                  )}
+                </div>
+              );
+            };
+
+            return (
+              <div className="space-y-2">
+                {renderGroup('Feature Services', featureLayers, arcGISFeatureLayersExpanded, setArcGISFeatureLayersExpanded)}
+                {renderGroup('Web Maps', webMaps, arcGISWebMapsExpanded, setArcGISWebMapsExpanded)}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {!showArcGISBrowser && (
+      <>
+      {/* Connect ArcGIS + Review Queue buttons */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setArcGISConnected(true)}
+          className={`border rounded-[4px] h-[26px] px-3 transition-colors flex items-center gap-1.5 ${
+            arcGISConnected
+              ? 'bg-[#166534] border-[#22c55e] text-white'
+              : 'bg-transparent border-[#6e757c] text-white hover:bg-[#6e757c]/20'
+          }`}
+          style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif" }}
+        >
+          {arcGISConnected ? (
+            <>
+              ArcGIS Connected
+              <CheckCircle width={12} height={12} strokeWidth={2} style={{ flexShrink: 0, color: '#22c55e' }} />
+            </>
+          ) : (
+            'Connect ArcGIS'
+          )}
+        </button>
+        {arcGISConnected && (
+          <button
+            onClick={() => setArcGISConnected(false)}
+            className="bg-transparent border border-[#6e757c] rounded-[4px] h-[26px] px-3 text-white hover:bg-[#6e757c]/20 transition-colors flex items-center gap-1.5"
+            style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif" }}
+          >
+            Sign Out of ArcGIS
+          </button>
+        )}
+        <button
+          onClick={() => console.log('Review Queue clicked')}
+          className="bg-transparent border border-[#6e757c] rounded-[4px] h-[26px] px-3 text-white hover:bg-[#6e757c]/20 transition-colors flex items-center gap-1.5"
+          style={{ fontSize: '12px', fontFamily: "'Open Sans', sans-serif" }}
+        >
+          Review Queue
+        </button>
       </div>
 
       {/* Incidents and AORs Filters */}
       <div className="mb-4 flex items-center gap-2">
-        {/* Incident Filter */}
-        <div className="flex-1 px-4 py-3 bg-[#222529] rounded-lg border border-[#6e757c]">
+        {/* Incident Filter - read-only */}
+        <div
+          className="flex-1 px-4 py-3 bg-[#222529] rounded-lg border border-[#6e757c] relative group"
+          title="You can only view and edit layers for this Incident inside its Incident Workspace."
+        >
           <div className="flex items-center gap-2">
             <span className="caption text-white whitespace-nowrap">Incident:</span>
-            <Popover open={isIncidentPopoverOpen} onOpenChange={setIsIncidentPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  className="w-[180px] h-[24px] bg-transparent border border-[#6e757c] rounded-[4px] px-2 caption text-white focus:outline-none focus:border-accent cursor-pointer flex items-center justify-between"
-                  style={{ 
-                    fontFamily: "'Open Sans', sans-serif",
-                    fontSize: '12px',
-                    fontWeight: 400,
-                    lineHeight: '18px'
-                  }}
-                >
-                  {selectedIncidents.length === 0 
-                    ? 'All Incidents' 
-                    : selectedIncidents.length === 1 
-                    ? selectedIncidents[0]
-                    : `${selectedIncidents.length} selected`}
-                  <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-0 bg-[#222529] border-[#6e757c]" align="start">
-                <Command className="bg-[#222529]">
-                  <CommandInput 
-                    placeholder="Search incident..." 
-                    className="h-9 caption text-white"
-                    style={{ 
-                      fontFamily: "'Open Sans', sans-serif",
-                      fontSize: '12px',
-                      fontWeight: 400,
-                      lineHeight: '18px'
-                    }}
-                  />
-                  <CommandList>
-                    <CommandEmpty className="caption text-white/70 p-2">No incident found.</CommandEmpty>
-                    <CommandGroup>
-                      {incidents.map((incident) => (
-                        <CommandItem
-                          key={incident}
-                          value={incident}
-                          onSelect={() => toggleIncident(incident)}
-                          className="caption text-white cursor-pointer hover:bg-[#14171a] data-[selected=true]:bg-[#14171a]"
-                          style={{ 
-                            fontFamily: "'Open Sans', sans-serif",
-                            fontSize: '12px',
-                            fontWeight: 400,
-                            lineHeight: '18px'
-                          }}
-                        >
-                          <Checkbox
-                            checked={selectedIncidents.includes(incident)}
-                            className="mr-2 h-3 w-3 border-white data-[state=checked]:bg-accent data-[state=checked]:border-accent"
-                          />
-                          {incident}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {selectedIncidents.length > 0 && (
-              <button
-                onClick={clearIncidentFilter}
-                className="p-1 hover:bg-muted/30 rounded transition-colors"
-                title="Clear filter"
-              >
-                <X className="w-3 h-3 text-white" />
-              </button>
-            )}
+            <div
+              className="w-[180px] h-[24px] bg-transparent border border-[#6e757c]/50 rounded-[4px] px-2 caption text-white flex items-center justify-between cursor-not-allowed opacity-75"
+              style={{ fontFamily: "'Open Sans', sans-serif", fontSize: '12px', fontWeight: 400, lineHeight: '18px' }}
+            >
+              <span className="truncate" style={{ fontFamily: "'Open Sans', sans-serif", fontSize: '12px', fontWeight: 400, lineHeight: '18px' }}>Miami FIFA World Cup</span>
+              <ChevronDown className="h-3 w-3 shrink-0 opacity-30" />
+            </div>
+          </div>
+          {/* Tooltip */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-[#14171a] border border-[#6e757c] rounded text-white/90 text-[10px] leading-tight whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50"
+            style={{ fontFamily: "'Open Sans', sans-serif" }}
+          >
+            You can only view and edit layers for this Incident inside its Incident Workspace.
           </div>
         </div>
 
@@ -492,7 +770,18 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
         </div>
         {weatherExpanded && (
           <div className="p-3 space-y-2">
+            <div className="relative mb-2">
+              <input
+                type="text"
+                value={weatherLayerSearchTerm}
+                onChange={(e) => setWeatherLayerSearchTerm(e.target.value)}
+                placeholder="Search weather layers..."
+                className="w-full h-[26px] bg-transparent border border-[#6e757c] rounded-[4px] px-3 caption text-white placeholder:text-[#6e757c] focus:outline-none focus:border-accent"
+              />
+            </div>
+
             {/* Radar Precipitation */}
+            {showWeatherRadar && (
             <div 
               className={`rounded-md bg-card/30 transition-all duration-300 ${data.isDraftingNewVersion ? 'fixed inset-0 overflow-y-auto' : 'overflow-hidden'}`}
               style={{
@@ -672,10 +961,10 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                     Last Updated: 2025-11-15 14:05 UTC
                   </div>
                   <div className="text-sm leading-none text-white mt-3">
-                    Region: Gulf Coast Region
+                    AORs: Gulf Coast AORs
                   </div>
                   <div className="text-sm leading-none text-white mt-3">
-                    Incident: Gulf Coast Pipeline Spill
+                    Incident: Miami FIFA World Cup
                   </div>
                   <div className="text-sm leading-none text-white mt-3">
                     Type: data layer
@@ -1225,8 +1514,10 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                 </div>
               )}
             </div>
+            )}
 
             {/* Active Weather Warnings */}
+            {showWeatherWarnings && (
             <div className="border border-border/30 rounded-md overflow-hidden bg-card/30">
               <div className="flex items-center gap-3 py-3 px-3">
                 <Checkbox
@@ -1250,6 +1541,16 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                   )}
                   <Label className="cursor-pointer flex-1">Active Weather Warnings</Label>
                 </button>
+                <span
+                  className="caption px-2 py-0.5 rounded shrink-0"
+                  style={{
+                    backgroundColor: '#22c55e20',
+                    color: '#22c55e',
+                    border: '1px solid #22c55e60'
+                  }}
+                >
+                  ArcGIS Hosted
+                </span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -1275,10 +1576,10 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                     Last Updated: 2025-11-15 14:02 UTC
                   </div>
                   <div className="text-sm leading-none text-white mt-3">
-                    Region: Gulf Coast Region
+                    AORs: Gulf Coast AORs
                   </div>
                   <div className="text-sm leading-none text-white mt-3">
-                    Incident: Gulf Coast Pipeline Spill
+                    Incident: Miami FIFA World Cup
                   </div>
                   <div className="text-sm leading-none text-white mt-3">
                     Type: data layer
@@ -1289,6 +1590,136 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                 </div>
               )}
             </div>
+            )}
+            {!showWeatherRadar && !showWeatherWarnings && (
+              <div className="caption text-white/50 px-1 py-2">No matching weather layers.</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Cutter Vessels Category */}
+      <div
+        className="border border-border rounded-lg overflow-hidden"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(2, 163, 254, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)'
+        }}
+      >
+        <div className={`p-3 ${expandedLayers.has('cutter-vessels') ? 'border-b border-border' : ''}`}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-2 flex-1">
+              <div
+                className="cursor-pointer"
+                onClick={() => toggleLayer('cutter-vessels')}
+              >
+                {expandedLayers.has('cutter-vessels') ? (
+                  <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                )}
+              </div>
+              <Checkbox
+                checked={false}
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginTop: '3px' }}
+              />
+              <Label
+                className="cursor-pointer"
+                onClick={() => toggleLayer('cutter-vessels')}
+              >
+                Cutter Vessels
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 p-0 hover:bg-muted"
+                onClick={() => openIndividualLayerModal('Cutter Vessels')}
+                title="View layer details"
+              >
+                <Maximize2 className="w-3 h-3 text-white" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        {expandedLayers.has('cutter-vessels') && (
+          <div className="p-3 space-y-2">
+            <div className="relative mb-2">
+              <input
+                type="text"
+                value={cutterVesselsSearchTerm}
+                onChange={(e) => setCutterVesselsSearchTerm(e.target.value)}
+                placeholder="Search cutter vessels..."
+                className="w-full h-[26px] bg-transparent border border-[#6e757c] rounded-[4px] px-3 caption text-white placeholder:text-[#6e757c] focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div className="caption text-white/50">No objects added yet.</div>
+          </div>
+        )}
+      </div>
+
+      {/* Boom Category */}
+      <div
+        className="border border-border rounded-lg overflow-hidden"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(2, 163, 254, 0.08) 0%, rgba(0, 0, 0, 0) 100%), linear-gradient(90deg, rgb(20, 23, 26) 0%, rgb(20, 23, 26) 100%)'
+        }}
+      >
+        <div className={`p-3 ${expandedLayers.has('boom') ? 'border-b border-border' : ''}`}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-2 flex-1">
+              <div
+                className="cursor-pointer"
+                onClick={() => toggleLayer('boom')}
+              >
+                {expandedLayers.has('boom') ? (
+                  <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                )}
+              </div>
+              <Checkbox
+                checked={false}
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginTop: '3px' }}
+              />
+              <Label
+                className="cursor-pointer"
+                onClick={() => toggleLayer('boom')}
+              >
+                Boom
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 p-0 hover:bg-muted"
+                onClick={() => openIndividualLayerModal('Boom')}
+                title="View layer details"
+              >
+                <Maximize2 className="w-3 h-3 text-white" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        {expandedLayers.has('boom') && (
+          <div className="p-3 space-y-2">
+            <div className="relative mb-2">
+              <input
+                type="text"
+                value={boomLayerSearchTerm}
+                onChange={(e) => setBoomLayerSearchTerm(e.target.value)}
+                placeholder="Search boom layers..."
+                className="w-full h-[26px] bg-transparent border border-[#6e757c] rounded-[4px] px-3 caption text-white placeholder:text-[#6e757c] focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div className="caption text-white/50">No objects added yet.</div>
           </div>
         )}
       </div>
@@ -1322,35 +1753,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
           </div>
           
           <div className="px-4 py-4">
-            {/* Submit and Cancel Buttons */}
-            <div className="mb-4 flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                className="text-white"
-                style={{ backgroundColor: '#2563eb' }}
-                onClick={() => {
-                  console.log('Submit to Section Chief');
-                  // Submit functionality placeholder
-                }}
-              >
-                Submit to Section Chief
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onDataChange({
-                    ...data,
-                    isDraftingNewDataLayer: false
-                  });
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-            
             {/* Version Selector */}
             <div className="mb-4">
               <Select value="v1" disabled>
@@ -1371,16 +1773,114 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
               Last Updated: N/A
             </div>
             <div className="text-sm leading-none text-white mt-3">
-              Region: Gulf Coast Region
+              Type: Data Layer
             </div>
             <div className="text-sm leading-none text-white mt-3">
-              Incident: Gulf Coast Pipeline Spill
+              Sources: PRATUS
             </div>
-            <div className="text-sm leading-none text-white mt-3">
-              Type: data layer
+
+            {/* Layer Name */}
+            <div className="mt-3">
+              <Label className="text-white text-xs mb-1 block">Layer Name</Label>
+              <Input
+                value={draftingLayerName}
+                onChange={(e) => setDraftingLayerName(e.target.value)}
+                placeholder="Enter data layer name..."
+                className="bg-[#222529] border-border text-white text-sm h-8"
+              />
             </div>
-            <div className="text-sm leading-none text-white mt-3">
-              Sources: CART, PRATUS
+
+            {/* Incident */}
+            <div className="mt-3">
+              <Label className="text-white text-xs mb-1 block">Incident</Label>
+              <div className="relative group">
+                <div
+                  className="w-full h-8 bg-[#222529] border border-border rounded-md px-3 text-white text-xs flex items-center justify-between cursor-not-allowed opacity-75"
+                  style={{ fontFamily: "'Open Sans', sans-serif" }}
+                >
+                  <span className="truncate">Miami FIFA World Cup</span>
+                  <ChevronDown className="h-3 w-3 shrink-0 opacity-30" />
+                </div>
+                <div
+                  className="absolute bottom-full left-0 mb-2 px-2 py-1.5 bg-[#14171a] border border-[#6e757c] rounded text-white/90 text-[10px] leading-tight whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                  style={{ fontFamily: "'Open Sans', sans-serif" }}
+                >
+                  Map Layers created in Incident Workspace must be associated with the current Incident.
+                </div>
+              </div>
+            </div>
+
+            {/* AORs */}
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-sm leading-none text-white shrink-0">AORs:</span>
+              <Popover open={draftingAORsOpen} onOpenChange={setDraftingAORsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 bg-transparent border-border text-white hover:bg-muted/50 text-xs justify-between min-w-[160px]"
+                  >
+                    <span className="truncate">
+                      {draftingAORs.length === 0
+                        ? 'Select AORs...'
+                        : draftingAORs.length === 1
+                        ? draftingAORs[0]
+                        : `${draftingAORs.length} selected`}
+                    </span>
+                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[220px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 200 }} align="start">
+                  <Command className="bg-[#222529]">
+                    <CommandInput placeholder="Search AORs..." className="h-8 text-white text-xs" />
+                    <CommandList>
+                      <CommandEmpty className="text-white/70 p-2 text-xs">No AOR found.</CommandEmpty>
+                      <CommandGroup>
+                        {[
+                          'Gulf Coast AORs',
+                          'Mid-Atlantic AORs',
+                          'Northeast AORs',
+                          'Southeast AORs',
+                          'Pacific AORs',
+                        ].map((aor) => (
+                          <CommandItem
+                            key={aor}
+                            onSelect={() =>
+                              setDraftingAORs(prev =>
+                                prev.includes(aor) ? prev.filter(a => a !== aor) : [...prev, aor]
+                              )
+                            }
+                            className="text-white cursor-pointer text-xs"
+                          >
+                            <Checkbox
+                              checked={draftingAORs.includes(aor)}
+                              className="mr-2 h-3 w-3 pointer-events-none"
+                            />
+                            {aor}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Category */}
+            <div className="mt-3">
+              <Label className="text-white text-xs mb-1 block">Category</Label>
+              <Select value={draftingLayerCategory} onValueChange={setDraftingLayerCategory}>
+                <SelectTrigger className="bg-[#222529] border-border text-white h-8 w-full text-xs">
+                  <SelectValue placeholder="Select category..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#222529] border-[#6e757c]" style={{ zIndex: 200 }}>
+                  <SelectItem value="weather" className="text-white text-xs">Weather</SelectItem>
+                  <SelectItem value="cutter-vessels" className="text-white text-xs">Cutter Vessels</SelectItem>
+                  <SelectItem value="boom" className="text-white text-xs">Boom</SelectItem>
+                  <SelectItem value="infrastructure" className="text-white text-xs">Infrastructure</SelectItem>
+                  <SelectItem value="operations" className="text-white text-xs">Operations</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             {/* Objects Section */}
@@ -1390,72 +1890,80 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                 <div className="text-sm leading-none text-white font-semibold">
                   Objects
                 </div>
-                <button
-                  onClick={() => {
-                    setAddingNexradStation(true);
-                    setNexradName('');
-                    setNexradLatitude('');
-                    setNexradLongitude('');
-                    setNexradStatus('');
-                    setNexradDistrict('');
-                    setNexradSector('');
-                  }}
-                  className="bg-black h-[22.75px] rounded-[4px] hover:bg-black/80 transition-colors border border-border text-white flex items-center gap-2 px-3"
-                >
-                  <div className="size-[13px] flex-shrink-0">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 13 13">
-                      <g>
-                        <path d="M2.70833 6.5H10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                        <path d="M6.5 2.70833V10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
-                      </g>
-                    </svg>
-                  </div>
-                  <span className="caption text-nowrap text-white">Add NEXRAD Station</span>
-                </button>
+                {!addingNexradStation && (
+                  <button
+                    onClick={() => {
+                      setAddingNexradStation(true);
+                      setDraftingObjectType('');
+                      setNexradName('');
+                      setNexradLatitude('');
+                      setNexradLongitude('');
+                      setNexradDescription('');
+                    }}
+                    className="bg-black h-[22.75px] rounded-[4px] hover:bg-black/80 transition-colors border border-border text-white flex items-center gap-2 px-3"
+                  >
+                    <div className="size-[13px] flex-shrink-0">
+                      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 13 13">
+                        <g>
+                          <path d="M2.70833 6.5H10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                          <path d="M6.5 2.70833V10.2917" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.08333" />
+                        </g>
+                      </svg>
+                    </div>
+                    <span className="caption text-nowrap text-white">Add Object</span>
+                  </button>
+                )}
               </div>
               
-              {/* Spacer */}
-              <div style={{ height: '32px' }}></div>
-              
-              {/* Symbology Section */}
-              <div className="mb-4 flex items-center gap-2">
-                <span className="text-white text-xs">Symbology:</span>
-                <div 
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: '#3b82f6' }}
-                ></div>
-              </div>
-              
-              <div className="space-y-2">
-                {/* Add NEXRAD Station - Edit State */}
-                {addingNexradStation && (
+              <div className="space-y-2 mt-3">
+                {/* Add Object - Edit State (shown on click of + Add Object) */}
+                {addingNexradStation && (() => {
+                  const selectedObj = DRAFTING_OBJECT_TYPES.find(t => t.value === draftingObjectType);
+                  return (
                   <div 
                     className="rounded-md bg-[#1a1d21] p-4 relative"
-                    style={{
-                      border: '2px solid white',
-                      zIndex: 10
-                    }}
+                    style={{ border: '2px solid white', zIndex: 10 }}
                   >
-                    {/* Object Type Field */}
-                    <div className="mb-[22px] flex items-center gap-2">
-                      <span className="text-white text-xs">Object Type:</span>
-                      <span className="text-white text-sm">NEXRAD Station</span>
-                    </div>
-                    
-                    {/* Symbology */}
+                    {/* Choose Object dropdown (replaces static Object Type) */}
                     <div className="mb-4 flex items-center gap-2">
-                      <span className="text-white text-xs">Symbology:</span>
-                      <div 
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: '#3b82f6' }}
-                      ></div>
+                      <Label className="text-white text-xs shrink-0">Choose Object:</Label>
+                      <Select
+                        value={draftingObjectType}
+                        onValueChange={(v) => setDraftingObjectType(v)}
+                      >
+                        <SelectTrigger className="bg-[#222529] border-border text-white h-8 w-[180px] text-xs">
+                          <SelectValue placeholder="Select type..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#222529] border-[#6e757c]" style={{ zIndex: 200 }}>
+                          {DRAFTING_OBJECT_TYPES.map((obj) => (
+                            <SelectItem key={obj.value} value={obj.value} className="text-white text-xs">
+                              <span className="flex items-center gap-2">
+                                <span className="w-3 h-3 rounded-full shrink-0 inline-block" style={{ backgroundColor: obj.symbology }} />
+                                {obj.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    {/* Symbology - shown once an object type is selected */}
+                    {selectedObj && (
+                      <div className="mb-4 flex items-center gap-2">
+                        <span className="text-white text-xs">Symbology:</span>
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: selectedObj.symbology }}
+                        />
+                      </div>
+                    )}
                     
                     <div className="mb-4">
+                      <Label className="text-white text-xs mb-2 block">Object Name</Label>
                       <Input
                         value={nexradName}
                         onChange={(e) => setNexradName(e.target.value)}
-                        placeholder="Enter NEXRAD Station name..."
+                        placeholder={selectedObj ? `Enter ${selectedObj.label} name...` : 'Enter object name...'}
                         className="bg-[#222529] border-border text-white font-semibold"
                       />
                     </div>
@@ -1509,36 +2017,15 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                       </div>
                     </div>
                     
-                    {/* Status Input */}
-                    <div className="mb-3">
-                      <Label className="text-white text-xs mb-2 block">Status</Label>
-                      <Input
-                        value={nexradStatus}
-                        onChange={(e) => setNexradStatus(e.target.value)}
-                        placeholder="e.g., Active"
-                        className="bg-[#222529] border-border text-white"
-                      />
-                    </div>
-                    
-                    {/* District Input */}
-                    <div className="mb-3">
-                      <Label className="text-white text-xs mb-2 block">District</Label>
-                      <Input
-                        value={nexradDistrict}
-                        onChange={(e) => setNexradDistrict(e.target.value)}
-                        placeholder="e.g., District 8"
-                        className="bg-[#222529] border-border text-white"
-                      />
-                    </div>
-                    
-                    {/* Sector Input */}
+                    {/* Description Input */}
                     <div className="mb-4">
-                      <Label className="text-white text-xs mb-2 block">Sector</Label>
-                      <Input
-                        value={nexradSector}
-                        onChange={(e) => setNexradSector(e.target.value)}
-                        placeholder="e.g., Houston-Galveston"
-                        className="bg-[#222529] border-border text-white"
+                      <Label className="text-white text-xs mb-2 block">Description</Label>
+                      <textarea
+                        value={nexradDescription}
+                        onChange={(e) => setNexradDescription(e.target.value)}
+                        placeholder="Enter a description..."
+                        rows={3}
+                        className="w-full bg-[#222529] border border-border text-white text-sm rounded-md px-3 py-2 resize-none focus:outline-none focus:border-accent placeholder:text-white/40"
                       />
                     </div>
                     
@@ -1550,15 +2037,28 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                         className="text-white"
                         style={{ backgroundColor: '#2563eb' }}
                         onClick={() => {
-                          console.log('Save NEXRAD Station:', {
-                            name: nexradName,
-                            latitude: nexradLatitude,
-                            longitude: nexradLongitude,
-                            status: nexradStatus,
-                            district: nexradDistrict,
-                            sector: nexradSector
-                          });
+                          if (draftingObjectType) {
+                            const objType = DRAFTING_OBJECT_TYPES.find(t => t.value === draftingObjectType);
+                            if (objType) {
+                              const newObj = {
+                                id: `obj-${Date.now()}`,
+                                type: draftingObjectType,
+                                label: objType.label,
+                                symbology: objType.symbology,
+                                name: nexradName || objType.label,
+                                latitude: nexradLatitude,
+                                longitude: nexradLongitude,
+                                description: nexradDescription,
+                              };
+                              setSavedDraftObjects(prev => [...prev, newObj]);
+                            }
+                          }
                           setAddingNexradStation(false);
+                          setDraftingObjectType('');
+                          setNexradName('');
+                          setNexradLatitude('');
+                          setNexradLongitude('');
+                          setNexradDescription('');
                         }}
                       >
                         Save
@@ -1567,13 +2067,90 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setAddingNexradStation(false)}
+                        onClick={() => {
+                          setAddingNexradStation(false);
+                          setDraftingObjectType('');
+                          setNexradName('');
+                          setNexradLatitude('');
+                          setNexradLongitude('');
+                          setNexradDescription('');
+                        }}
                       >
                         Cancel
                       </Button>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
+
+                {/* Saved Objects List */}
+                {savedDraftObjects.map((obj) => {
+                  const isExpanded = expandedDraftObjects.has(obj.id);
+                  return (
+                    <div key={obj.id} className="border border-border/40 rounded-md overflow-hidden bg-[#1a1d21]">
+                      {/* Collapsed header row */}
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                        onClick={() => setExpandedDraftObjects(prev => {
+                          const next = new Set(prev);
+                          if (next.has(obj.id)) next.delete(obj.id); else next.add(obj.id);
+                          return next;
+                        })}
+                      >
+                        {isExpanded
+                          ? <ChevronDown className="w-3 h-3 text-white/60 shrink-0" />
+                          : <ChevronRight className="w-3 h-3 text-white/60 shrink-0" />}
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: obj.symbology }} />
+                        <span className="text-white text-xs font-medium truncate flex-1">{obj.name}</span>
+                        <span className="text-white/40 text-[10px] shrink-0">{obj.label}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Map view for:', obj.name);
+                          }}
+                          className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                          title="View on map"
+                        >
+                          <Map className="w-3 h-3 text-white/60" />
+                        </button>
+                      </button>
+
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="px-3 pb-3 pt-1 space-y-1 border-t border-border/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/50 text-[10px] w-20 shrink-0">Object Type</span>
+                            <span className="text-white text-xs">{obj.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/50 text-[10px] w-20 shrink-0">Symbology</span>
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: obj.symbology }} />
+                          </div>
+                          {obj.name && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/50 text-[10px] w-20 shrink-0">Name</span>
+                              <span className="text-white text-xs">{obj.name}</span>
+                            </div>
+                          )}
+                          {(obj.latitude || obj.longitude) && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/50 text-[10px] w-20 shrink-0">Location</span>
+                              <span className="text-white text-xs">{obj.latitude}{obj.latitude && obj.longitude ? ', ' : ''}{obj.longitude}</span>
+                            </div>
+                          )}
+                          {obj.description && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-white/50 text-[10px] w-20 shrink-0 mt-0.5">Description</span>
+                              <span className="text-white text-xs">{obj.description}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             
@@ -1631,50 +2208,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                     </Popover>
                   </div>
                   
-                  {/* Teams */}
-                  <div className="flex-1">
-                    <Label className="text-white/70 text-xs mb-1 block">Teams</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          {viewerTeams.length > 0 ? `${viewerTeams.length} selected` : 'Select teams'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[300px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 9999 }}>
-                        <Command className="bg-[#222529]">
-                          <CommandInput placeholder="Search teams..." className="text-white" />
-                          <CommandList>
-                            <CommandEmpty className="text-white">No teams found.</CommandEmpty>
-                            <CommandGroup>
-                              {['Response Team Alpha', 'Response Team Beta', 'Analysis Team', 'Field Operations'].map((team) => (
-                                <CommandItem
-                                  key={team}
-                                  onSelect={() => {
-                                    setViewerTeams(prev =>
-                                      prev.includes(team)
-                                        ? prev.filter(t => t !== team)
-                                        : [...prev, team]
-                                    );
-                                  }}
-                                  className="text-white"
-                                >
-                                  <Checkbox
-                                    checked={viewerTeams.includes(team)}
-                                    className="mr-2"
-                                  />
-                                  {team}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
                 </div>
               </div>
               
@@ -1728,51 +2261,35 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                     </Popover>
                   </div>
                   
-                  {/* Teams */}
-                  <div className="flex-1">
-                    <Label className="text-white/70 text-xs mb-1 block">Teams</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          {editorTeams.length > 0 ? `${editorTeams.length} selected` : 'Select teams'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[300px] p-0 bg-[#222529] border-[#6e757c]" style={{ zIndex: 9999 }}>
-                        <Command className="bg-[#222529]">
-                          <CommandInput placeholder="Search teams..." className="text-white" />
-                          <CommandList>
-                            <CommandEmpty className="text-white">No teams found.</CommandEmpty>
-                            <CommandGroup>
-                              {['Response Team Alpha', 'Response Team Beta', 'Analysis Team', 'Field Operations'].map((team) => (
-                                <CommandItem
-                                  key={team}
-                                  onSelect={() => {
-                                    setEditorTeams(prev =>
-                                      prev.includes(team)
-                                        ? prev.filter(t => t !== team)
-                                        : [...prev, team]
-                                    );
-                                  }}
-                                  className="text-white"
-                                >
-                                  <Checkbox
-                                    checked={editorTeams.includes(team)}
-                                    className="mr-2"
-                                  />
-                                  {team}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
                 </div>
+              </div>
+
+              {/* Submit and Cancel Buttons */}
+              <div className="mt-4 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="text-white"
+                  style={{ backgroundColor: '#2563eb' }}
+                  onClick={() => {
+                    console.log('Submit for Review');
+                  }}
+                >
+                  Submit for Review
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onDataChange({
+                      ...data,
+                      isDraftingNewDataLayer: false
+                    });
+                  }}
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           </div>
@@ -1838,8 +2355,8 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                 timezone: 'UTC',
                 frequency: 'Every 5 minutes',
                 type: 'data layer',
-                region: 'Gulf Coast Region',
-                incident: 'Gulf Coast Pipeline Spill'
+                region: 'Gulf Coast AORs',
+                incident: 'Miami FIFA World Cup'
               },
               'Active Weather Warnings': {
                 source: 'NOAA Weather Alerts (CAP)',
@@ -1849,8 +2366,8 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                 timezone: 'UTC',
                 frequency: 'Real-time',
                 type: 'data layer',
-                region: 'Gulf Coast Region',
-                incident: 'Gulf Coast Pipeline Spill'
+                region: 'Gulf Coast AORs',
+                incident: 'Miami FIFA World Cup'
               }
             };
             const meta = presets[selectedIndividualLayer] ?? {
@@ -1886,7 +2403,7 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                       <TableCell className="text-sm text-white p-2 text-right">{meta.lastUpdated} ({meta.timezone})</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-sm text-white/70 p-2">Region</TableCell>
+                      <TableCell className="text-sm text-white/70 p-2">AORs</TableCell>
                       <TableCell className="text-sm text-white p-2 text-right">{meta.region}</TableCell>
                     </TableRow>
                     <TableRow>
@@ -1918,7 +2435,7 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                             ? 'Select incidents...'
                             : layerIncidents.length === 1
                             ? layerIncidents[0] === 'gulf-coast-pipeline'
-                              ? 'Gulf Coast Pipeline Spill'
+                              ? 'Miami FIFA World Cup'
                               : layerIncidents[0] === 'bayou-dularge'
                               ? 'Bayou Dularge Contamination'
                               : layerIncidents[0] === 'estuarine-wildlife'
@@ -1957,7 +2474,7 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                             </div>
                           </CommandItem>
                           {[
-                            { value: 'gulf-coast-pipeline', label: 'Gulf Coast Pipeline Spill' },
+                            { value: 'gulf-coast-pipeline', label: 'Miami FIFA World Cup' },
                             { value: 'bayou-dularge', label: 'Bayou Dularge Contamination' },
                             { value: 'estuarine-wildlife', label: 'Estuarine Wildlife Area Response' },
                             { value: 'delaware-river-tanker', label: 'Delaware River Tanker Spill' },
@@ -2329,6 +2846,8 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
           </div>
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 }

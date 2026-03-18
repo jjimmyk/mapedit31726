@@ -184,7 +184,7 @@ export function DataLayers({
   };
 
   const getLayerIncident = (layerName: string): string => {
-    // Gulf Coast Pipeline Spill (parent)
+    // Miami FIFA World Cup (parent)
     const gulfCoastPipelineLayers = [
       'Radar Precipitation',
       'Active Weather Warnings'
@@ -1036,7 +1036,7 @@ export function DataLayers({
                       </div>
                     </CommandItem>
                     {[
-                      { value: 'gulf-coast-pipeline', label: 'Gulf Coast Pipeline Spill' },
+                      { value: 'gulf-coast-pipeline', label: 'Miami FIFA World Cup' },
                       { value: 'bayou-dularge', label: 'Bayou Dularge Contamination' },
                       { value: 'estuarine-wildlife', label: 'Estuarine Wildlife Area Response' },
                       { value: 'delaware-river-tanker', label: 'Delaware River Tanker Spill' },
@@ -1362,7 +1362,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -1424,7 +1424,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -1549,7 +1549,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -1743,7 +1743,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -1814,7 +1814,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -1939,7 +1939,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -2001,7 +2001,7 @@ export function DataLayers({
                       Region: Gulf Coast Region
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
-                      Incident: Gulf Coast Pipeline Spill
+                      Incident: Miami FIFA World Cup
                     </div>
                     <div className="text-sm leading-none text-white mt-3">
                       Type: data layer
@@ -2299,7 +2299,7 @@ export function DataLayers({
                         <div className="flex justify-between">
                           <span className="text-white/70">Incident</span>
                           <span className="text-white">
-                            {getLayerIncident(layer.name) === 'gulf-coast-pipeline' ? 'Gulf Coast Pipeline Spill' :
+                            {getLayerIncident(layer.name) === 'gulf-coast-pipeline' ? 'Miami FIFA World Cup' :
                              getLayerIncident(layer.name) === 'bayou-dularge' ? 'Bayou Dularge Contamination' :
                              getLayerIncident(layer.name) === 'estuarine-wildlife' ? 'Estuarine Wildlife Area Response' :
                              getLayerIncident(layer.name) === 'delaware-river-tanker' ? 'Delaware River Tanker Spill' :
@@ -2446,7 +2446,7 @@ export function DataLayers({
                 frequency: 'Every 5 minutes',
                 type: 'data layer',
                 region: 'Gulf Coast Region',
-                incident: 'Gulf Coast Pipeline Spill'
+                incident: 'Miami FIFA World Cup'
               },
               'Active Weather Warnings': {
                 source: 'NOAA Weather Alerts (CAP)',
@@ -2457,7 +2457,7 @@ export function DataLayers({
                 frequency: 'Real-time',
                 type: 'data layer',
                 region: 'Gulf Coast Region',
-                incident: 'Gulf Coast Pipeline Spill'
+                incident: 'Miami FIFA World Cup'
               },
               'Staging Areas': {
                 source: 'Incident Logistics GIS (IMS)',
@@ -2613,7 +2613,7 @@ export function DataLayers({
                             ? 'Select incidents...'
                             : layerIncidents.length === 1
                             ? layerIncidents[0] === 'gulf-coast-pipeline'
-                              ? 'Gulf Coast Pipeline Spill'
+                              ? 'Miami FIFA World Cup'
                               : layerIncidents[0] === 'bayou-dularge'
                               ? 'Bayou Dularge Contamination'
                               : layerIncidents[0] === 'estuarine-wildlife'
@@ -2652,7 +2652,7 @@ export function DataLayers({
                             </div>
                           </CommandItem>
                           {[
-                            { value: 'gulf-coast-pipeline', label: 'Gulf Coast Pipeline Spill' },
+                            { value: 'gulf-coast-pipeline', label: 'Miami FIFA World Cup' },
                             { value: 'bayou-dularge', label: 'Bayou Dularge Contamination' },
                             { value: 'estuarine-wildlife', label: 'Estuarine Wildlife Area Response' },
                             { value: 'delaware-river-tanker', label: 'Delaware River Tanker Spill' },
