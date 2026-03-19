@@ -477,14 +477,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                     )}
                     <Label className="cursor-pointer flex-1">{layer.name}</Label>
                   </button>
-                  <button
-                    type="button"
-                    className="shrink-0 px-2 h-[20px] rounded border border-[#6e757c]/50 text-white/60 hover:text-white hover:border-[#6e757c] hover:bg-[#6e757c]/20 transition-colors"
-                    style={{ fontSize: '11px', fontFamily: "'Open Sans', sans-serif" }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Preview
-                  </button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -492,15 +484,12 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                     className="h-5 w-5 p-0 hover:bg-muted"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setArcGISExpandedLayers((prev) => {
-                        const next = new Set(prev);
-                        next.has(layer.name) ? next.delete(layer.name) : next.add(layer.name);
-                        return next;
-                      });
+                      console.log('Map icon clicked for ArcGIS layer:', layer.name);
+                      // Map functionality placeholder
                     }}
-                    title="View layer details"
+                    title="View on map"
                   >
-                    <Maximize2 className="w-3 h-3 text-white" />
+                    <Map className="w-3 h-3 text-white" />
                   </Button>
                   <span
                     className="inline-block w-3 h-3 rounded-[2px]"
@@ -848,11 +837,25 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                   >
                     <Maximize2 className="w-3 h-3 text-white" />
                   </Button>
-                  <span
-                    className="inline-block w-3 h-3 rounded-[2px]"
-                    style={{ backgroundColor: 'rgba(0,123,255,0.35)', border: '1px solid rgba(255,255,255,0.6)' }}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 p-0 hover:bg-muted"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Map icon clicked for Radar Precipitation');
+                      // Map functionality placeholder
+                    }}
+                    title="View on map"
+                  >
+                    <Map className="w-3 h-3 text-white" />
+                  </Button>
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: '#3b82f6' }}
                     aria-hidden
-                  />
+                  ></div>
                 </div>
               )}
               {(expandedLayers.has('weather-radar') || data.isDraftingNewVersion) && (
@@ -1184,23 +1187,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                             )}
                             <Label className="cursor-pointer flex-1 text-sm">NEXRAD Station KHGX</Label>
                           </button>
-                          <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: '#3b82f6' }}
-                          ></div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 p-0 hover:bg-muted"
-                            onClick={() => {
-                              console.log('Map icon clicked for KHGX');
-                              // Map functionality placeholder
-                            }}
-                            title="View on map"
-                          >
-                            <Map className="w-3 h-3 text-white" />
-                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
@@ -1214,6 +1200,23 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                           >
                             <Edit2 className="w-3 h-3 text-white" />
                           </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 p-0 hover:bg-muted"
+                            onClick={() => {
+                              console.log('Map icon clicked for KHGX');
+                              // Map functionality placeholder
+                            }}
+                            title="View on map"
+                          >
+                            <Map className="w-3 h-3 text-white" />
+                          </Button>
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: '#3b82f6' }}
+                          ></div>
                         </div>
                         {expandedLayers.has('weather-radar-khgx') && (
                           <div className="px-4 py-3 border-t border-border/30">
@@ -1254,23 +1257,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                             )}
                             <Label className="cursor-pointer flex-1 text-sm">NEXRAD Station KLCH</Label>
                           </button>
-                          <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: '#3b82f6' }}
-                          ></div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 p-0 hover:bg-muted"
-                            onClick={() => {
-                              console.log('Map icon clicked for KLCH');
-                              // Map functionality placeholder
-                            }}
-                            title="View on map"
-                          >
-                            <Map className="w-3 h-3 text-white" />
-                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
@@ -1284,6 +1270,23 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                           >
                             <Edit2 className="w-3 h-3 text-white" />
                           </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 p-0 hover:bg-muted"
+                            onClick={() => {
+                              console.log('Map icon clicked for KLCH');
+                              // Map functionality placeholder
+                            }}
+                            title="View on map"
+                          >
+                            <Map className="w-3 h-3 text-white" />
+                          </Button>
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: '#3b82f6' }}
+                          ></div>
                         </div>
                         {expandedLayers.has('weather-radar-klch') && (
                           <div className="px-4 py-3 border-t border-border/30">
@@ -1564,11 +1567,25 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                 >
                   <Maximize2 className="w-3 h-3 text-white" />
                 </Button>
-                <span
-                  className="inline-block w-3 h-3 rounded-[2px]"
-                  style={{ backgroundColor: 'rgba(220,53,69,0.15)', border: '1px solid rgba(255,255,255,0.6)' }}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 p-0 hover:bg-muted"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Map icon clicked for Active Weather Warnings');
+                    // Map functionality placeholder
+                  }}
+                  title="View on map"
+                >
+                  <Map className="w-3 h-3 text-white" />
+                </Button>
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: '#3b82f6' }}
                   aria-hidden
-                />
+                ></div>
               </div>
               {expandedLayers.has('weather-warnings') && (
                 <div className="px-4 py-4">
