@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Table, TableBody, TableCell, TableRow } from '../ui/table';
-import { ChevronDown, ChevronRight, X, Maximize2, Map, Edit2, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, X, Maximize2, Map, CheckCircle } from 'lucide-react';
 import svgPaths from '../../imports/svg-7hg6d30srz';
 
 // Object types for Drafting New Data Layer (choose-object dropdown)
@@ -1193,19 +1193,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                             size="icon"
                             className="h-5 w-5 p-0 hover:bg-muted"
                             onClick={() => {
-                              console.log('Edit icon clicked for KHGX');
-                              // Edit functionality placeholder
-                            }}
-                            title="Edit station"
-                          >
-                            <Edit2 className="w-3 h-3 text-white" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 p-0 hover:bg-muted"
-                            onClick={() => {
                               console.log('Map icon clicked for KHGX');
                               // Map functionality placeholder
                             }}
@@ -1257,19 +1244,6 @@ export function LayersPhase({ data, onDataChange, onComplete, onPrevious }: Laye
                             )}
                             <Label className="cursor-pointer flex-1 text-sm">NEXRAD Station KLCH</Label>
                           </button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 p-0 hover:bg-muted"
-                            onClick={() => {
-                              console.log('Edit icon clicked for KLCH');
-                              // Edit functionality placeholder
-                            }}
-                            title="Edit station"
-                          >
-                            <Edit2 className="w-3 h-3 text-white" />
-                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
