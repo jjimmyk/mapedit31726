@@ -5,6 +5,7 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
+import { Checkbox } from '../ui/checkbox';
 import { ChevronDown, ChevronRight, Edit2, Trash2, Plus, Map, X } from 'lucide-react';
 import { toast } from 'sonner';
 import svgPaths from '../../imports/svg-300ru7qiwa';
@@ -82,6 +83,8 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
   const [expandedAssets, setExpandedAssets] = useState<Set<string>>(new Set());
   const [selectedArea, setSelectedArea] = useState<'all' | 'atlantic' | 'pacific'>('all');
+  const [checkedDistricts, setCheckedDistricts] = useState<Set<string>>(new Set());
+  const [checkedSectors, setCheckedSectors] = useState<Set<string>>(new Set());
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
 
@@ -727,6 +730,61 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
     setSelectedSector(null);
   };
 
+  const toggleDistrictChecked = (districtId: string) => {
+    setCheckedDistricts(prev => {
+      const next = new Set(prev);
+      if (next.has(districtId)) {
+        next.delete(districtId);
+      } else {
+        next.add(districtId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSectorChecked = (sectorId: string) => {
+    setCheckedSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectorId)) {
+        next.delete(sectorId);
+      } else {
+        next.add(sectorId);
+      }
+      return next;
+    });
+  };
+
+  const getDistrictResources = (district: RosterPosition): AssignedMember[] => {
+    const base = (district.assignedMembers || []).slice(0, 3);
+    return base.map((sector, index) => ({
+      ...sector,
+      name: `${sector.name} Resource Package ${index + 1}`,
+      email: `resource${index + 1}.${district.id}@uscg.mil`,
+      activationStatus: index === 0 ? 'Activated' : index === 1 ? 'Awaiting Confirmation' : 'Not Activated'
+    }));
+  };
+
+  const selectableDistrictIds = filteredDistricts
+    .filter((district) => !district.id.startsWith('sector-'))
+    .map((district) => district.id);
+  const checkedSelectableDistrictCount = selectableDistrictIds.filter((id) => checkedDistricts.has(id)).length;
+  const isAllDistrictsChecked =
+    selectableDistrictIds.length > 0 && checkedSelectableDistrictCount === selectableDistrictIds.length;
+  const isSomeDistrictsChecked =
+    checkedSelectableDistrictCount > 0 && checkedSelectableDistrictCount < selectableDistrictIds.length;
+
+  const toggleAllVisibleDistricts = () => {
+    setCheckedDistricts((prev) => {
+      const next = new Set(prev);
+      if (isAllDistrictsChecked) {
+        selectableDistrictIds.forEach((id) => next.delete(id));
+      } else {
+        selectableDistrictIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Section - Sticky (mirrors Resources) */}
@@ -854,9 +912,55 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
       )}
 
       {/* Districts List */}
+      <div className="flex items-center gap-2 px-1">
+        <Checkbox
+          checked={isAllDistrictsChecked ? true : isSomeDistrictsChecked ? 'indeterminate' : false}
+          onCheckedChange={toggleAllVisibleDistricts}
+          className="h-4 w-4 border-white/70"
+        />
+        <span className="caption text-white">Select All Districts</span>
+      </div>
+
       <div className="space-y-4">
         {filteredDistricts.map((district) => {
           const isExpanded = expandedMembers.has(district.id);
+          const districtSectorIds = (district.assignedMembers || []).map((sector) => `${district.id}:${sector.id}`);
+          const districtResources = getDistrictResources(district);
+          const districtResourceIds = districtResources.map((resource) => `${district.id}:resource:${resource.id}`);
+          const checkedDistrictSectorCount = districtSectorIds.filter((sectorId) => checkedSectors.has(sectorId)).length;
+          const checkedDistrictResourceCount = districtResourceIds.filter((resourceId) => checkedSectors.has(resourceId)).length;
+          const isAllDistrictSectorsChecked =
+            districtSectorIds.length > 0 && checkedDistrictSectorCount === districtSectorIds.length;
+          const isSomeDistrictSectorsChecked =
+            checkedDistrictSectorCount > 0 && checkedDistrictSectorCount < districtSectorIds.length;
+          const isAllDistrictResourcesChecked =
+            districtResourceIds.length > 0 && checkedDistrictResourceCount === districtResourceIds.length;
+          const isSomeDistrictResourcesChecked =
+            checkedDistrictResourceCount > 0 && checkedDistrictResourceCount < districtResourceIds.length;
+
+          const toggleAllDistrictSectors = () => {
+            setCheckedSectors((prev) => {
+              const next = new Set(prev);
+              if (isAllDistrictSectorsChecked) {
+                districtSectorIds.forEach((sectorId) => next.delete(sectorId));
+              } else {
+                districtSectorIds.forEach((sectorId) => next.add(sectorId));
+              }
+              return next;
+            });
+          };
+
+          const toggleAllDistrictResources = () => {
+            setCheckedSectors((prev) => {
+              const next = new Set(prev);
+              if (isAllDistrictResourcesChecked) {
+                districtResourceIds.forEach((resourceId) => next.delete(resourceId));
+              } else {
+                districtResourceIds.forEach((resourceId) => next.add(resourceId));
+              }
+              return next;
+            });
+          };
           
           // Special case: If this is a sector-level view (showing SubUnits), skip the parent container
           // and render the SubUnits directly as top-level items
@@ -892,6 +996,11 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
                             <span className="caption text-white">{sector.name}</span>
                           </div>
                           <div className="flex items-center gap-1">
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: '#14b8a6' }}
+                              aria-hidden
+                            />
                             <button
                               onClick={(e) => { 
                                 e.stopPropagation();
@@ -1030,6 +1139,16 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
                       }
                     }}
                   >
+                    <div
+                      className="flex items-center mt-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={checkedDistricts.has(district.id)}
+                        onCheckedChange={() => toggleDistrictChecked(district.id)}
+                        className="h-4 w-4 border-white/70"
+                      />
+                    </div>
                     {isExpanded ? (
                       <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
                     ) : (
@@ -1040,6 +1159,11 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: '#f97316' }}
+                      aria-hidden
+                    />
                     <button
                       onClick={(e) => { 
                         e.stopPropagation();
@@ -1061,34 +1185,140 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
               {/* District Details (Expanded) */}
               {isExpanded && (
                 <div className="p-4 space-y-4 bg-card/50">
-                  {/* District Location */}
-                  {district.location && (
-                    <div>
-                      <label className="text-white mb-1 block">Location</label>
-                      <p className="caption text-white">
-                        {district.location}
-                        {(() => {
-                          const coords = getDistrictCoordinates(district.id);
-                          const [lon, lat] = coords.center.split(',');
-                          return ` (${parseFloat(lat).toFixed(4)}°N, ${Math.abs(parseFloat(lon)).toFixed(4)}°W)`;
-                        })()}
-                      </p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-white mb-1 block">SITREP</label>
+                    <p className="caption text-white">placeholder for AOR&apos;s SITREP</p>
+                  </div>
                   
-                  {/* District Description */}
-                  {district.description && (
-                    <div>
-                      <label className="text-white mb-1 block">Description</label>
-                      <p className="caption text-white">{district.description}</p>
+                  {/* Nested Sectors/SubUnits List */}
+                  <div>
+                    <label className="text-white mb-2 block">
+                      Resources ({districtResources.length})
+                    </label>
+                    {!district.id.startsWith('sector-') && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Checkbox
+                          checked={isAllDistrictResourcesChecked ? true : isSomeDistrictResourcesChecked ? 'indeterminate' : false}
+                          onCheckedChange={toggleAllDistrictResources}
+                          className="h-4 w-4 border-white/70"
+                        />
+                        <span className="caption text-white">Select All Resources</span>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {districtResources.map((resource) => {
+                        const resourceId = `${district.id}:resource:${resource.id}`;
+                        const isResourceExpanded = expandedSectors.has(resourceId);
+                        return (
+                          <div
+                            key={resourceId}
+                            className="border border-border/50 rounded-lg overflow-hidden"
+                            style={{ backgroundColor: 'rgba(139, 123, 168, 0.15)' }}
+                          >
+                            {/* Resource Header */}
+                            <div className={`p-3 ${isResourceExpanded ? 'border-b border-border/50' : ''}`}>
+                              <div className="flex items-start justify-between">
+                                <div
+                                  className="flex items-start gap-2 cursor-pointer flex-1"
+                                  onClick={() => {
+                                    toggleSector(resourceId);
+                                    if (onAddAIContext) {
+                                      onAddAIContext(resource.name);
+                                    }
+                                  }}
+                                >
+                                  <div
+                                    className="flex items-center mt-0.5"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Checkbox
+                                      checked={checkedSectors.has(resourceId)}
+                                      onCheckedChange={() => toggleSectorChecked(resourceId)}
+                                      className="h-4 w-4 border-white/70"
+                                    />
+                                  </div>
+                                  {isResourceExpanded ? (
+                                    <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
+                                  )}
+                                  <span className="caption text-white">{resource.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onZoomToLocation) {
+                                        const coords = getSectorCoordinates(resource.id);
+                                        onZoomToLocation(coords.center, coords.scale);
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-muted/30 rounded transition-colors"
+                                    title="Zoom to resource"
+                                  >
+                                    <Map className="w-3 h-3 text-white" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                            {/* Resource Details (Expanded) */}
+                            {isResourceExpanded && (
+                              <div className="p-3 space-y-3 bg-card/20">
+                                <div className="grid grid-cols-2 gap-3">
+                                  {resource.location && (
+                                    <div>
+                                      <label className="text-white mb-1 block text-xs">Location</label>
+                                      <p className="caption text-white text-sm">
+                                        {resource.location}
+                                        {(() => {
+                                          const coords = getSectorCoordinates(resource.id);
+                                          const [lon, lat] = coords.center.split(',');
+                                          return ` (${parseFloat(lat).toFixed(4)}°N, ${Math.abs(parseFloat(lon)).toFixed(4)}°W)`;
+                                        })()}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <label className="text-white mb-1 block text-xs">Command Center Email</label>
+                                    <p className="caption text-white text-sm">{resource.email}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white mb-1 block text-xs">Command Center Phone</label>
+                                    <p className="caption text-white text-sm">{resource.phone || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white mb-1 block text-xs">Operating Status</label>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getActivationStatusColor(resource.activationStatus) }} />
+                                      <span className="caption text-sm" style={{ color: getActivationStatusTextColor(resource.activationStatus) }}>
+                                        {resource.activationStatus}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                  
+                  </div>
+
                   {/* Nested Sectors/SubUnits List */}
                   <div>
                     <label className="text-white mb-2 block">
                       {district.id.startsWith('sector-') ? 'SubUnits' : 'Sectors'} ({district.assignedMembers?.length || 0})
                     </label>
+                    {!district.id.startsWith('sector-') && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Checkbox
+                          checked={isAllDistrictSectorsChecked ? true : isSomeDistrictSectorsChecked ? 'indeterminate' : false}
+                          onCheckedChange={toggleAllDistrictSectors}
+                          className="h-4 w-4 border-white/70"
+                        />
+                        <span className="caption text-white">Select All Sectors</span>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {district.assignedMembers?.map((sector) => {
                         const sectorId = `${district.id}:${sector.id}`;
@@ -1111,6 +1341,18 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
                                     }
                                   }}
                                 >
+                                  {!district.id.startsWith('sector-') && (
+                                    <div
+                                      className="flex items-center mt-0.5"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Checkbox
+                                        checked={checkedSectors.has(sectorId)}
+                                        onCheckedChange={() => toggleSectorChecked(sectorId)}
+                                        className="h-4 w-4 border-white/70"
+                                      />
+                                    </div>
+                                  )}
                                   {isSectorExpanded ? (
                                     <ChevronDown className="w-4 h-4 text-white flex-shrink-0 mt-0.5" />
                                   ) : (
@@ -1119,6 +1361,11 @@ export function IncidentRosterPhase({ data, onDataChange, onComplete, onPrevious
                                   <span className="caption text-white">{sector.name}</span>
                                 </div>
                                 <div className="flex items-center gap-1">
+                                  <div
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: district.id.startsWith('sector-') ? '#14b8a6' : '#8b5cf6' }}
+                                    aria-hidden
+                                  />
                                   <button
                                     onClick={(e) => { 
                                       e.stopPropagation();

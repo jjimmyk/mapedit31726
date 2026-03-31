@@ -8,8 +8,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Checkbox } from '../ui/checkbox';
-import { Edit2, Trash2, ChevronRight, ChevronDown, Map, Check, X, Filter } from 'lucide-react';
+import { Edit2, Trash2, ChevronRight, ChevronDown, Map, Check, X, Filter, Info } from 'lucide-react';
 import svgPaths from '../../imports/svg-7hg6d30srz';
 
 interface Action {
@@ -29,6 +30,90 @@ interface Objective {
   actions: Action[];
   childIncidents?: Objective[];
 }
+
+type ICSMeetingRow = {
+  id: string;
+  start: string;
+  end: string;
+  meeting: string;
+  agenda: string[];
+  attendees: string[];
+  location: string;
+  teamsMeeting: boolean;
+};
+
+const ICS_MEETING_OPTIONS = [
+  'Command & General Staff',
+  'Operations Briefing',
+  'Planning Meeting',
+  'Tactics Meeting',
+  'Logistics Coordination',
+  'Safety Briefing'
+];
+
+const ICS_ATTENDEE_POSITION_OPTIONS = [
+  'Incident Commander',
+  'Deputy Incident Commander',
+  'Operations Section Chief',
+  'Planning Section Chief',
+  'Logistics Section Chief',
+  'Finance/Admin Section Chief',
+  'Safety Officer',
+  'Public Information Officer',
+  'Liaison Officer',
+  'Situation Unit Leader',
+  'Resource Unit Leader',
+  'Communications Unit Leader'
+];
+
+const INCIDENT_WORKFLOW_OPTIONS = [
+  'Standard ICS Workflow',
+  'Security Incident Workflow',
+  'Cyber Incident Workflow',
+  'Mass Casualty Workflow',
+  'Maritime Incident Workflow'
+];
+
+const INCIDENT_TEMPLATE_OPTIONS = [
+  'Default Incident Template',
+  'FIFA Venue Security Template',
+  'Critical Infrastructure Template',
+  'Public Safety Coordination Template',
+  'Multi-Agency Unified Command Template'
+];
+
+const createDefaultICSMeetings = (): ICSMeetingRow[] => [
+  {
+    id: 'm1',
+    start: '2026-03-19T07:30',
+    end: '2026-03-19T08:00',
+    meeting: 'Command & General Staff',
+    agenda: ['Operational priorities and overnight updates'],
+    attendees: ['Incident Commander', 'Operations Section Chief', 'Planning Section Chief'],
+    location: 'ICP Main Conference Room',
+    teamsMeeting: false
+  },
+  {
+    id: 'm2',
+    start: '2026-03-19T08:15',
+    end: '2026-03-19T09:00',
+    meeting: 'Operations Briefing',
+    agenda: ['Current tactics, resource status, safety issues'],
+    attendees: ['Operations Section Chief', 'Resource Unit Leader'],
+    location: 'Ops Floor',
+    teamsMeeting: false
+  },
+  {
+    id: 'm3',
+    start: '2026-03-19T10:00',
+    end: '2026-03-19T11:00',
+    meeting: 'Planning Meeting',
+    agenda: ['Set IAP objectives and assignments'],
+    attendees: ['Incident Commander', 'Planning Section Chief', 'Logistics Section Chief', 'Finance/Admin Section Chief'],
+    location: 'Planning Room A',
+    teamsMeeting: false
+  }
+];
 
 interface ObjectivesActionsPhaseProps {
   data?: Record<string, any>;
@@ -122,22 +207,72 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
   const [newIncidentSitrep, setNewIncidentSitrep] = useState('');
   const [newIncidentCategoryOpen, setNewIncidentCategoryOpen] = useState(false);
   const [newIncidentLocation, setNewIncidentLocation] = useState('');
+  const [newIncidentWorkflow, setNewIncidentWorkflow] = useState<string | undefined>(undefined);
+  const [newIncidentTemplate, setNewIncidentTemplate] = useState<string | undefined>(undefined);
   const [newIncidentAORs, setNewIncidentAORs] = useState<string[]>([]);
   const [newIncidentAOROpen, setNewIncidentAOROpen] = useState(false);
   const [newIncidentUnits, setNewIncidentUnits] = useState<string[]>([]);
   const [newIncidentUnitOpen, setNewIncidentUnitOpen] = useState(false);
-  const [addIncidentStep, setAddIncidentStep] = useState<1 | 2>(1);
+  const [addIncidentStep, setAddIncidentStep] = useState<1 | 2 | 3>(1);
+  const [incidentMeetings, setIncidentMeetings] = useState<ICSMeetingRow[]>(createDefaultICSMeetings);
   const [newIncidentStartTime, setNewIncidentStartTime] = useState(() => {
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   });
+  const [expandedMeetingAgendas, setExpandedMeetingAgendas] = useState<Set<string>>(new Set());
   const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>([]);
   const [isIncidentTypePopoverOpen, setIsIncidentTypePopoverOpen] = useState(false);
   const [selectedAORs, setSelectedAORs] = useState<string[]>([]);
   const [isAORPopoverOpen, setIsAORPopoverOpen] = useState(false);
   const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
   const [isSeverityPopoverOpen, setIsSeverityPopoverOpen] = useState(false);
+
+  const updateIncidentMeeting = (meetingId: string, field: keyof Omit<ICSMeetingRow, 'id' | 'teamsMeeting' | 'agenda' | 'attendees'>, value: string) => {
+    setIncidentMeetings((prev) =>
+      prev.map((row) => (row.id === meetingId ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const toggleAgendaVisibility = (meetingId: string) => {
+    setExpandedMeetingAgendas((prev) => {
+      const next = new Set(prev);
+      if (next.has(meetingId)) {
+        next.delete(meetingId);
+      } else {
+        next.add(meetingId);
+      }
+      return next;
+    });
+  };
+
+  const areAllTeamsMeetingsSelected =
+    incidentMeetings.length > 0 && incidentMeetings.every((row) => row.teamsMeeting);
+
+  const setAllTeamsMeetings = (enabled: boolean) => {
+    setIncidentMeetings((prev) => prev.map((row) => ({ ...row, teamsMeeting: enabled })));
+  };
+
+  const setTeamsMeetingForRow = (meetingId: string, enabled: boolean) => {
+    setIncidentMeetings((prev) =>
+      prev.map((row) => (row.id === meetingId ? { ...row, teamsMeeting: enabled } : row))
+    );
+  };
+
+  const toggleMeetingAttendee = (meetingId: string, attendeePosition: string) => {
+    setIncidentMeetings((prev) =>
+      prev.map((row) => {
+        if (row.id !== meetingId) return row;
+        const exists = row.attendees.includes(attendeePosition);
+        return {
+          ...row,
+          attendees: exists
+            ? row.attendees.filter((att) => att !== attendeePosition)
+            : [...row.attendees, attendeePosition]
+        };
+      })
+    );
+  };
   
   type IncidentDetails = {
     description: string;
@@ -1388,13 +1523,17 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
           setNewIncidentCategories([]);
           setNewIncidentSitrep('');
           setNewIncidentLocation('');
+          setNewIncidentWorkflow(undefined);
+          setNewIncidentTemplate(undefined);
           setNewIncidentAORs([]);
           setNewIncidentUnits([]);
           setNewIncidentStartTime(() => { const now = new Date(); const pad = (n: number) => n.toString().padStart(2, '0'); return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`; });
+          setIncidentMeetings(createDefaultICSMeetings());
+          setExpandedMeetingAgendas(new Set());
           setAddIncidentStep(1);
         }
       }}>
-        <DialogContent className="bg-[#222529] border-[#6e757c] text-white" style={{ maxWidth: '1296px', width: '1296px' }}>
+        <DialogContent className="bg-[#222529] border-[#6e757c] text-white" style={{ maxWidth: '1426px', width: '1426px' }}>
           <DialogHeader>
             <DialogTitle className="text-white text-sm font-semibold">Add Incident</DialogTitle>
           </DialogHeader>
@@ -1409,16 +1548,23 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
             </button>
             <div className="flex-[0.3] h-[2px] bg-border"></div>
             <button onClick={() => setAddIncidentStep(2)} className="flex items-center gap-2 cursor-pointer">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-medium" style={addIncidentStep === 2 ? { backgroundColor: '#60a5fa', boxShadow: '0 0 0 4px rgba(96, 165, 250, 0.3)' } : { backgroundColor: '#6b7280' }}>
-                2
+              <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-medium" style={addIncidentStep === 2 ? { backgroundColor: '#60a5fa', boxShadow: '0 0 0 4px rgba(96, 165, 250, 0.3)' } : addIncidentStep > 2 ? { backgroundColor: '#16a34a' } : { backgroundColor: '#6b7280' }}>
+                {addIncidentStep > 2 ? '✓' : '2'}
               </div>
               <span className={`text-sm ${addIncidentStep === 2 ? 'text-white font-medium' : 'text-white/70'}`}>Configure Team</span>
+            </button>
+            <div className="flex-[0.3] h-[2px] bg-border"></div>
+            <button onClick={() => setAddIncidentStep(3)} className="flex items-center gap-2 cursor-pointer">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-medium" style={addIncidentStep === 3 ? { backgroundColor: '#60a5fa', boxShadow: '0 0 0 4px rgba(96, 165, 250, 0.3)' } : { backgroundColor: '#6b7280' }}>
+                3
+              </div>
+              <span className={`text-sm ${addIncidentStep === 3 ? 'text-white font-medium' : 'text-white/70'}`}>Schedule Meetings</span>
             </button>
           </div>
 
           <div className="flex gap-4" style={{ minHeight: '576px' }}>
             {/* Left half: form fields */}
-            <div className="w-1/2 space-y-4 overflow-y-auto pr-2">
+            <div className={`${addIncidentStep === 1 ? 'w-1/2' : 'w-full'} space-y-4 overflow-y-auto pr-2`}>
               {addIncidentStep === 1 ? (
                 <>
                   <div className="space-y-1.5">
@@ -1471,6 +1617,40 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
                   </div>
 
                   <div className="space-y-1.5">
+                    <label className="text-white text-xs block">Select Workflow</label>
+                    <Select value={newIncidentWorkflow} onValueChange={setNewIncidentWorkflow}>
+                      <SelectTrigger className="bg-input-background border-border text-white">
+                        <SelectValue placeholder="Select workflow..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#222529] border-[#6e757c] text-white">
+                        {INCIDENT_WORKFLOW_OPTIONS.map((workflow) => (
+                          <SelectItem key={workflow} value={workflow}>
+                            {workflow}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-white text-xs block">
+                      {`Select Template: ${newIncidentWorkflow || 'No Workflow Selected'}`}
+                    </label>
+                    <Select value={newIncidentTemplate} onValueChange={setNewIncidentTemplate}>
+                      <SelectTrigger className="bg-input-background border-border text-white">
+                        <SelectValue placeholder="Select template..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#222529] border-[#6e757c] text-white">
+                        {INCIDENT_TEMPLATE_OPTIONS.map((template) => (
+                          <SelectItem key={template} value={template}>
+                            {template}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <label className="text-white text-xs block">Initial Situation Report</label>
                     <Textarea
                       value={newIncidentSitrep}
@@ -1486,8 +1666,36 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
                       <button className="bg-transparent border border-[#6e757c] text-white caption px-3 py-1 rounded-[4px] hover:bg-[#222529] transition-colors text-xs">
                         Input Coordinates
                       </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="bg-transparent border border-[#6e757c] text-white caption px-3 py-1 rounded-[4px] hover:bg-[#222529] transition-colors text-xs inline-flex items-center gap-1">
+                            <span>Draw Location</span>
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-[#222529] border-[#6e757c] text-white">
+                          <DropdownMenuItem
+                            className="text-white hover:bg-[#14171a] focus:bg-[#14171a]"
+                            onSelect={() => {
+                              console.log('Draw Point selected');
+                              // Draw point functionality placeholder
+                            }}
+                          >
+                            Draw Point
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-white hover:bg-[#14171a] focus:bg-[#14171a]"
+                            onSelect={() => {
+                              console.log('Draw Polygon selected');
+                              // Draw polygon functionality placeholder
+                            }}
+                          >
+                            Draw Polygon
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <button className="bg-transparent border border-[#6e757c] text-white caption px-3 py-1 rounded-[4px] hover:bg-[#222529] transition-colors text-xs">
-                        Draw Location
+                        Enter Address
                       </button>
                     </div>
                   </div>
@@ -1556,7 +1764,7 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
                     </button>
                   </div>
                 </>
-              ) : (
+              ) : addIncidentStep === 2 ? (
                 <>
                   <div className="flex-1 flex items-center justify-center border border-dashed border-[#6e757c] rounded-lg">
                     <span className="text-white/50 text-sm"> [placeholder for default incident roster org chart. The user can only assign users within their Home AOR to incident roster positions.]</span>
@@ -1565,6 +1773,186 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={() => setAddIncidentStep(1)}
+                      className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => setAddIncidentStep(3)}
+                      className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setIsAddIncidentModalOpen(false)}
+                      className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="border border-[#6e757c] rounded-lg overflow-hidden">
+                    <div className="overflow-x-hidden">
+                      <table className="w-full table-fixed">
+                        <thead className="bg-[#1b1e22]">
+                          <tr>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">Agenda</th>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">Meeting</th>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">Start</th>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">End</th>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">Attendees</th>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">Location</th>
+                            <th className="text-left text-xs font-medium text-white/80 px-3 py-2 border-b border-[#6e757c]">
+                              <div className="flex items-center gap-1.5">
+                                <span>Microsoft Teams Meeting</span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button type="button" className="text-white/70 hover:text-white transition-colors">
+                                        <Info className="h-3.5 w-3.5" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-[240px]">
+                                      <p>Create a Teams link for this meeting and include it with the invite.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Checkbox
+                                  checked={areAllTeamsMeetingsSelected}
+                                  onCheckedChange={(checked) => setAllTeamsMeetings(checked === true)}
+                                  className="h-4 w-4 border-white/70"
+                                />
+                                <span className="text-xs font-medium text-white/80">Select All</span>
+                              </div>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {incidentMeetings.flatMap((row) => [
+                            <tr key={`${row.id}-main`} className="border-b border-[#6e757c]/30">
+                              <td className="px-2 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleAgendaVisibility(row.id)}
+                                  className="bg-[#01669f] hover:bg-[#01669f]/90 text-white caption px-4 py-1.5 rounded-[4px] transition-colors"
+                                >
+                                  {expandedMeetingAgendas.has(row.id) ? 'Hide Agenda' : 'Show Agenda'}
+                                </button>
+                              </td>
+                              <td className="px-2 py-2">
+                                <Select
+                                  value={row.meeting}
+                                  onValueChange={(value) => updateIncidentMeeting(row.id, 'meeting', value)}
+                                >
+                                  <SelectTrigger className="h-8 bg-input-background border-border text-white">
+                                    <SelectValue placeholder="Select meeting" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-[#222529] border-[#6e757c] text-white">
+                                    {ICS_MEETING_OPTIONS.map((meetingOption) => (
+                                      <SelectItem key={meetingOption} value={meetingOption}>
+                                        {meetingOption}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="px-2 py-2">
+                                <Input
+                                  type="datetime-local"
+                                  value={row.start}
+                                  onChange={(e) => updateIncidentMeeting(row.id, 'start', e.target.value)}
+                                  className="h-8 bg-input-background border-border text-white"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <Input
+                                  type="datetime-local"
+                                  value={row.end}
+                                  onChange={(e) => updateIncidentMeeting(row.id, 'end', e.target.value)}
+                                  className="h-8 bg-input-background border-border text-white"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button className="w-full h-8 bg-input-background border border-border rounded-md px-2 text-left text-xs text-white flex items-center justify-between">
+                                      <span className="truncate">
+                                        {row.attendees.length === 0
+                                          ? 'Select positions...'
+                                          : row.attendees.length === 1
+                                          ? row.attendees[0]
+                                          : `${row.attendees.length} positions selected`}
+                                      </span>
+                                      <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[320px] p-0 bg-[#222529] border-[#6e757c]" align="start">
+                                    <Command className="bg-[#222529]">
+                                      <CommandInput placeholder="Search positions..." className="h-9 text-white text-sm" />
+                                      <CommandList className="max-h-56">
+                                        <CommandEmpty className="text-white text-sm p-2">No positions found.</CommandEmpty>
+                                        <CommandGroup>
+                                          {ICS_ATTENDEE_POSITION_OPTIONS.map((position) => (
+                                            <CommandItem
+                                              key={`${row.id}-${position}`}
+                                              value={position}
+                                              onSelect={() => toggleMeetingAttendee(row.id, position)}
+                                              className="text-white text-sm flex items-center gap-2"
+                                            >
+                                              <Checkbox checked={row.attendees.includes(position)} className="border-[#6e757c]" />
+                                              <span>{position}</span>
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              </td>
+                              <td className="px-2 py-2">
+                                <Input
+                                  value={row.location}
+                                  onChange={(e) => updateIncidentMeeting(row.id, 'location', e.target.value)}
+                                  className="h-8 bg-input-background border-border text-white"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center justify-start">
+                                  <Checkbox
+                                    checked={row.teamsMeeting}
+                                    onCheckedChange={(checked) => setTeamsMeetingForRow(row.id, checked === true)}
+                                    className="h-4 w-4 border-white/70"
+                                  />
+                                </div>
+                              </td>
+                            </tr>,
+                            expandedMeetingAgendas.has(row.id) ? (
+                              <tr key={`${row.id}-agenda`} className="border-b border-[#6e757c]/60">
+                                <td colSpan={7} className="px-2 py-2">
+                                  <div className="text-xs text-white/70 mb-1">Agenda</div>
+                                  <ul className="space-y-1.5 pl-5 list-disc">
+                                    {row.agenda.map((agendaItem, agendaIndex) => (
+                                      <li key={`${row.id}-agenda-item-${agendaIndex}`} className="text-sm text-white/90 break-words">
+                                        {agendaItem}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </td>
+                              </tr>
+                            ) : null
+                          ])}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setAddIncidentStep(2)}
                       className="bg-transparent border border-[#6e757c] text-white caption px-4 py-1.5 rounded-[4px] hover:bg-[#222529] transition-colors"
                     >
                       Back
@@ -1585,9 +1973,12 @@ export function ObjectivesActionsPhase({ data = {}, onDataChange, onComplete, on
                           setNewIncidentCategories([]);
                           setNewIncidentSitrep('');
                           setNewIncidentLocation('');
+                          setNewIncidentWorkflow(undefined);
+                          setNewIncidentTemplate(undefined);
                           setNewIncidentAORs([]);
                           setNewIncidentUnits([]);
                           setNewIncidentStartTime(() => { const now = new Date(); const pad = (n: number) => n.toString().padStart(2, '0'); return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`; });
+                          setIncidentMeetings(createDefaultICSMeetings());
                           setAddIncidentStep(1);
                         }
                       }}
